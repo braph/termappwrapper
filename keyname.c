@@ -24,24 +24,6 @@ void *redirect_to_stdout(void *_fd)
    }
 }
 
-/*
- * default-action: drop|pass (ignore unkown keys, pass keys as keystroke)
- * mode "blah": create new mode
- * switch-to
- *
- *
- * [normal]
- *    bind i switch-to insert
- *
- *    bind raw(
- *
- * [insert]
- *    default-action:
- *    bind 33 switch-to normal
- *    bind 'soundso' type "asfsdfsf"; blahblah
- *
- */
-
 int main()
 {
    initscr();

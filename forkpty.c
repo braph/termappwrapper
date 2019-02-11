@@ -24,32 +24,6 @@ void *redirect_to_stdout(void *_fd)
    }
 }
 
-struct mode_binding {
-   int key;
-}
-
-struct mode {
-   char *mode;
-}
-
-
-/*
- * default-action: drop|pass (ignore unkown keys, pass keys as keystroke)
- * mode "blah": create new mode
- * switch-to
- *
- *
- * [normal]
- *    bind i switch_mode insert
- *    bind raw(
- *    bind KEY_DOWN type "j"
- *
- * [insert]
- *    default-action:
- *    bind 033 switch_mode normal
- *
- */
-
 int main()
 {
    int master;

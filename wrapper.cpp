@@ -108,59 +108,6 @@ void dump_tables() {
    }
 }
 
-/*
-//std::map<int, Actions> root_bindings;
-
-// bind -m normal KEY_ESCAPE switch_mode sdfasdf
-
-class Action
-{
-};
-
-class TypeAction : public Action
-{
-   string m_TypeString;
-
-   void execute()
-   {
-   }
-};
-
-class SwitchModeAction : public Action
-{
-   string m_Mode;
-
-   void execute()
-   {
-   }
-};
-
-typedef vector<Action> Actions;
-
-class Mapping
-{
-   map<int, Actions>;
-}
-
-class Modes
-{
-   int m_currentMode;
-
-
-   void switchMode(int mode)
-   {
-   }
-};
-*/
-
-extern FILE *yyin;
-
-void read_config(const char *file) {
-   FILE *fh = fopen(file, "r");
-
-   //yyin = fh;
-}
-
 int main(int argc, char *argv[]) {
    //setupterm((char *)0, 1, (int *)0);
    initscr();

@@ -37,22 +37,19 @@ void  cleanup();
 void *redirect_to_stdout();
 int   forkapp(char **, int*, pid_t*);
 
-pthread_t   redir_thread;
+pthread_t      redir_thread;
+struct termios restore_termios;
 
 int main(int argc, char *argv[]) {
    int         c;
    char        *mode = NULL;
 
-   atexit(cleanup);
    context_init();
 
    if (! load_terminfo())
       errx(1, "Could not setup terminfo");
 
-   if (! (tk = termkey_new(STDIN_FILENO, TERMKEY_FLAG_CTRLC)))
-      err(1, "Initializing termkey failed");
-
-   if (! termkey_start(tk))
+   if (! (tk = termkey_new_abstract(getenv("TERM"), 0)))
       err(1, "Initializing termkey failed");
 
    while ((c = getopt(argc, argv, GETOPT_OPTS)) != -1)
@@ -111,6 +108,21 @@ int main(int argc, char *argv[]) {
       .modifiers = 0
    };
 
+   struct termios termios;
+   if (tcgetattr(STDIN_FILENO, &termios) == 0) {
+      restore_termios = termios;
+      termios.c_iflag &= ~(IXON|INLCR|ICRNL);
+      termios.c_lflag &= ~(ICANON|ECHO);
+      termios.c_cc[VMIN] = 1;
+      termios.c_cc[VTIME] = 0;
+      termios.c_lflag &= ~ISIG;
+      tcsetattr(STDIN_FILENO, TCSANOW, &termios);
+   }
+
+   atexit(cleanup);
+   signal(SIGINT, cleanup);
+   signal(SIGTERM, cleanup);
+
    setbuf(stdin, NULL);
    for (;;) {
       for (;;) {
@@ -151,13 +163,14 @@ int main(int argc, char *argv[]) {
 }
 
 void cleanup() {
-   termkey_stop(tk);
-   termkey_destroy(tk);
+   tcsetattr(STDIN_FILENO, TCSANOW, &restore_termios);
 #if FREE_MEMORY
+   termkey_destroy(tk);
    context_free();
    unload_terminfo();
    pthread_join(redir_thread, NULL);
 #endif
+   exit(0);
 }
 
 void *redirect_to_stdout(void *_fd)

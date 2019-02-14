@@ -28,57 +28,42 @@ command_t* get_command(char *name) {
    return NULL;
 }
 
-binding_t* bind_parse(int argc, char *args[])
+/* parse single command, appends to binding */
+int binding_append_command(int argc, char *args[], binding_t *binding)
 {
-   TermKeyKey     *key      = NULL;
-   command_t      *cmd      = NULL;
-   binding_t      *binding  = NULL;
+   command_t   *cmd = NULL;
+   void        *arg = NULL;
 
-   if (! check_args(argc, "key", "+command"))
-      return NULL;
-
-   if (! (key = parse_key_new(args[0]))) {
-      write_error("invalid key %s", args[0]);
-      return NULL;
+   if (! (cmd = get_command(args[0]))) {
+      write_error("unknown command: %s", args[0]);
+      return 0;
    }
 
-   binding = malloc(sizeof(binding_t));
-   binding->key        = key;
-   binding->commands   = NULL;
-   binding->n_commands = 0;
+   if (! (arg = cmd->parse(argc - 1, &args[1]))) {
+      prepend_error("%s", cmd->name);
+      return 0;
+   }
 
-   int j, sub_argc;
-   for (int i = 1; i < argc; ++i) {
-      if (! (cmd = get_command(args[i]))) {
-         write_error("unknown command: %s", args[i]);
-         goto ERROR;
-      }
+   binding->commands = realloc(binding->commands, ++binding->n_commands * sizeof(command_call_t));
+   binding->commands[binding->n_commands - 1].command = cmd;
+   binding->commands[binding->n_commands - 1].arg = arg;
+   return 1;
+}
 
-      for (j = i + 1; j < argc; ++j) {
-         if (streq(args[j], ";"))
+/* parse multiple commands, append to binding */
+int binding_append_commands(int argc, char *args[], binding_t *binding)
+{
+   int j;
+
+   for (int i = 0; i < argc; ++i) {
+      for (j = i + 1; j < argc; ++j)
+         if (streq(args[j], "\\;"))
             break;
-      }
-      sub_argc = j - i - 1;
 
-      binding->commands = realloc(binding->commands, ++binding->n_commands * sizeof(command_call_t));
-      binding->commands[binding->n_commands - 1].command = cmd;
-
-      void *cmdarg = cmd->parse(sub_argc, &args[i + 1]);
-      if (! cmdarg) {
-         prepend_error("%s", cmd->name);
-         goto ERROR;
-      }
-
-      binding->commands[binding->n_commands - 1].arg = cmdarg;
-
+      if (! binding_append_command(j - i, &args[i], binding))
+         return 0;
       i = j;
    }
 
-   return binding;
-
-ERROR:
-   free(key);
-   free(binding);
-   //freeArray(commands, n_commands);
-   return NULL;
+   return 1;
 }

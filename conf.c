@@ -8,7 +8,7 @@
 #include <string.h>
 
 // bind_parse.c
-binding_t* bind_parse(int, char *[]);
+int binding_append_commands(int, char *[], binding_t*);
 
 static int lex_args(char ***args) {
    int ttype;
@@ -79,13 +79,30 @@ static int repeat(int argc, char *args[]) {
 }
 
 static int bind(int argc, char *args[]) {
-   binding_t *binding;
+   TermKeyKey *key;
+   binding_t  *binding;
 
-   if (! (binding = bind_parse(argc, args)))
+   if (! check_args(argc, "key", "+command"))
       return 0;
 
-   keymode_add_binding(context.current_mode, binding);
-   return 1;
+   if (! (key = parse_key_new(args[0]))) {
+      write_error("invalid key %s", args[0]);
+      return 0;
+   }
+
+   binding = keymode_get_binding(context.current_mode, key);
+   if (binding) {
+      // clear binding
+   }
+   else {
+      binding = malloc(sizeof(binding_t));
+      binding->key        = key;
+      binding->commands   = NULL;
+      binding->n_commands = 0;
+      keymode_add_binding(context.current_mode, binding);
+   }
+
+   return binding_append_commands(argc - 1, &args[1], binding);
 }
 
 static struct {

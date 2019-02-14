@@ -186,6 +186,7 @@ static int read_word() {
    token_clear();
    while ((c = lex_getc()) != EOF) {
       if (c == '\\' && lex_peekc() != EOF) {
+         token_append(c);
          token_append(lex_getc());
       }
       else if (c == '\'' || c == '"' || c == ';' || isspace(c)) {

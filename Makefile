@@ -1,29 +1,42 @@
-LEX = /usr/bin/flex
-CFLAGS = -g
-LDLIBS = -lfl
-CC = /usr/bin/g++
-YACC = /usr/bin/yacc
+PROGNAME   = termappwrapper
+LIBS 		  = -lutil -ltermkey -lcurses -lpthread
+DEBUG 	  = 0
+FREE  	  = 0
+CC_FLAGS   = -Wall
 
-build: #cfgparser.scan.c 
-	g++ -O2 wrapper.cpp -lutil -lpthread -lncurses -o wrapper #-lfl
-#cfgparser.scan.cpp cfgparser.tab.c 
+ifeq ($(DEBUG), 1)
+	FREE = 1
+	CC_FLAGS += -g
+endif
 
-debug:
-	g++ -g  wrapper.cpp -lutil -lpthread -lncurses -o wrapper
+CC_FLAGS += -DFREE_MEMORY=$(FREE) -DDEBUG=$(DEBUG)
 
-cfgparser.scan.c:  cfgparser.tab.c
-	flex -+ cfgparser.l
-	mv -f lex.yy.cc cfgparser.scan.cpp
+CMDS = goto mask write key signal ignore
+CMDS := $(addprefix cmd_, $(CMDS))
 
-cfgparser.tab.c:
-	yacc -d cfgparser.y
-	mv -f y.tab.c cfgparser.tab.c
-	mv -f y.tab.h cfgparser.tab.h
+OBJS  = termkeystuff bind_parse iwrap conf lexer common $(CMDS)
+OBJS := $(addsuffix .o, $(OBJS))
 
-cfgparser.tab.h:
-	yacc -d cfgparser.y
-	mv -f y.tab.c cfgparser.tab.c
-	mv -f y.tab.h cfgparser.tab.h
+build: $(OBJS)
+	gcc $(CC_FLAGS) $(LIBS) objs/*.o main.c -o $(PROGNAME)
+
+%.o:
+	@mkdir -p objs
+	gcc $(CC_FLAGS) $(LIBS) -c $*.c -o objs/$*.o
+
+vi_conf.h: .force
+	./tools/stripconf.py -c -v VI_CONF confs/vi.conf > vi_conf.h
+
+game_conf.h: .force
+	./tools/stripconf.py -c -v GAME_CONF confs/game.conf > game_conf.h
 
 clean:
-	rm -f cfgparser.scan.cpp cfgparser.tab.h cfgparser.tab.c
+	rm -f $(PROGNAME)
+	rm -rf objs
+
+nanotest:
+	./termappwrapper -v nano vi_conf.h
+
+.force:
+	@true
+

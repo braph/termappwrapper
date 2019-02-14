@@ -1,0 +1,16 @@
+const char *GAME_CONF = 
+"s game;"
+"s global;"
+"b Escape g game;"
+"s game;"
+"i;"
+"b s k Down;"
+"b w k Up;"
+"b a k Left;"
+"b d k Right;"
+"b S k Down Down Down;"
+"b W k Up Up Up;"
+"b A k Left Left Left;"
+"b D k Right Right Right;"
+"b t g global;"
+;

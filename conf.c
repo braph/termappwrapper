@@ -79,18 +79,18 @@ static int repeat(int argc, char *args[]) {
 }
 
 static int bind(int argc, char *args[]) {
-   TermKeyKey *key;
+   TermKeyKey key;
    binding_t  *binding;
 
    if (! check_args(argc, "key", "+command"))
       return 0;
 
-   if (! (key = parse_key_new(args[0]))) {
+   if (! (parse_key(args[0], &key))) {
       write_error("invalid key %s", args[0]);
       return 0;
    }
 
-   binding = keymode_get_binding(context.current_mode, key);
+   binding = keymode_get_binding(context.current_mode, &key);
    if (binding) {
       // clear binding
    }
@@ -102,6 +102,7 @@ static int bind(int argc, char *args[]) {
       keymode_add_binding(context.current_mode, binding);
    }
 
+   // TODO FREE
    return binding_append_commands(argc - 1, &args[1], binding);
 }
 

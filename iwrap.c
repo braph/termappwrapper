@@ -112,7 +112,7 @@ void keymode_add_binding(keymode_t *km, binding_t *binding) {
 binding_t*
 keymode_get_binding(keymode_t *km, TermKeyKey *key) {
    for (int i=0; i < km->n_bindings; ++i)
-      if (! termkey_keycmp(tk, key, km->bindings[i]->key))
+      if (! termkey_keycmp(tk, key, &km->bindings[i]->key))
          return km->bindings[i];
 
    return NULL;
@@ -137,8 +137,6 @@ void command_call_free(command_call_t *call) {
 }
 
 void binding_free(binding_t *binding) {
-   free(binding->key);
-
    for (int i=0; i < binding->n_commands; ++i)
       command_call_free(&binding->commands[i]);
    free(binding->commands);

@@ -2,6 +2,7 @@
 #define _IWRAP_H
 
 #include <stdbool.h>
+#include <sys/types.h>
 #include <termkey.h>
 
 struct command_call_t;
@@ -29,7 +30,7 @@ typedef struct command_call_t {
 } command_call_t;
 
 typedef struct binding_t {
-   TermKeyKey      *key;
+   TermKeyKey      key;
    command_call_t  *commands;
    int             n_commands;
 } binding_t;
@@ -67,6 +68,7 @@ void context_free();
 
 void  handle_key(TermKeyKey *key, char *raw, int len);
 void  write_to_program(char *);
+int   args_find_optind(int argc, char *argv[]);
 int   check_args(int argc, ...);
 void* cmd_parse_none(int, char **);
 

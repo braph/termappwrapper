@@ -31,6 +31,7 @@
  * TODO: repeat-max
  * TODO: instant-leave mode?
  * TODO: unbind, bind check for duplicate key bind
+ * TODO: resize pty
  */
 
 void  cleanup();
@@ -110,12 +111,12 @@ int main(int argc, char *argv[]) {
 
    struct termios termios;
    if (tcgetattr(STDIN_FILENO, &termios) == 0) {
-      restore_termios = termios;
-      termios.c_iflag &= ~(IXON|INLCR|ICRNL);
-      termios.c_lflag &= ~(ICANON|ECHO);
-      termios.c_cc[VMIN] = 1;
-      termios.c_cc[VTIME] = 0;
-      termios.c_lflag &= ~ISIG;
+      restore_termios      = termios;
+      termios.c_iflag     &= ~(IXON|INLCR|ICRNL);
+      termios.c_lflag     &= ~(ICANON|ECHO);
+      termios.c_cc[VMIN]   = 1;
+      termios.c_cc[VTIME]  = 0;
+      termios.c_lflag     &= ~ISIG;
       tcsetattr(STDIN_FILENO, TCSANOW, &termios);
    }
 

@@ -67,6 +67,7 @@ static struct {
   { NULL }
 };
 
+// Stolen and adapted from libtermkey/driver-ti.c 
 static
 int funcname2keysym(const char *funcname, TermKeySym *symp)
 {
@@ -109,6 +110,7 @@ void addKeySym(TermKeySym sym, char *sequence) {
    ++normal_lookup_size;
 }
 
+// Stolen and adapted from libtermkey/driver-ti.c 
 int load_terminfo()
 {
    int i;
@@ -191,7 +193,7 @@ char *format_key(TermKeyKey *key) {
 }
 
 static inline __attribute__((always_inline))
-int get_byte_for_mod(int modifiers) {
+char get_byte_for_mod(int modifiers) {
    /*  For KEYSYM and Fn-keys
     *    base        = 49
     *    Shift       =  1
@@ -211,31 +213,31 @@ char *get_key_code(TermKeyKey *key) {
       if (key->modifiers == 0)
          return get_sequence_for_sym(normal_lookup, normal_lookup_size, key->code.sym);
 
-      int c;
+      char c;
       #define case break; case
       switch ((int) key->code.sym) {
-         case TERMKEY_SYM_INSERT:    c = 50;
-         case TERMKEY_SYM_DELETE:    c = 51;
-         case TERMKEY_SYM_PAGEUP:    c = 53;
-         case TERMKEY_SYM_PAGEDOWN:  c = 54;
+         case TERMKEY_SYM_INSERT:    c = '2';
+         case TERMKEY_SYM_DELETE:    c = '3';
+         case TERMKEY_SYM_PAGEUP:    c = '5';
+         case TERMKEY_SYM_PAGEDOWN:  c = '6';
          
-         case TERMKEY_SYM_UP:        c = 65;
-         case TERMKEY_SYM_DOWN:      c = 66;
-         case TERMKEY_SYM_RIGHT:     c = 67;
-         case TERMKEY_SYM_LEFT:      c = 68;
-         case TERMKEY_SYM_END:       c = 70;
-         case TERMKEY_SYM_HOME:      c = 72;
+         case TERMKEY_SYM_UP:        c = 'A';
+         case TERMKEY_SYM_DOWN:      c = 'B';
+         case TERMKEY_SYM_RIGHT:     c = 'C';
+         case TERMKEY_SYM_LEFT:      c = 'D';
+         case TERMKEY_SYM_END:       c = 'F';
+         case TERMKEY_SYM_HOME:      c = 'H';
 
          break;
          default: return NULL;
       }
       #undef case
 
-      int mod = get_byte_for_mod(key->modifiers);
+      char mod = get_byte_for_mod(key->modifiers);
 
       buf[0] = 27;
       buf[1] = 91;
-      if (c < 55) {
+      if (c <= '6') {
          buf[2] = c;
          buf[3] = 59;
          buf[4] = mod;
@@ -302,7 +304,7 @@ char *get_key_code(TermKeyKey *key) {
          }
       }
       else {
-         int mod = get_byte_for_mod(key->modifiers);
+         char mod = get_byte_for_mod(key->modifiers);
 
          /*     S-F1:  27  91  49  59  50  80   0
           *     S-F2:  27  91  49  59  50  81   0
@@ -344,17 +346,12 @@ char *get_key_code(TermKeyKey *key) {
           *  C-S-F12:  27  91  50  52  59  54 126 */
 
          buf[1] = 91;
-
-         if (n <= 8)
-            buf[2] = 49;
-         else
-            buf[2] = 50;
-
+         buf[2] = (n <= 8 ? 49 : 50);
          buf[3] = (char[]) { 59, 59, 59, 59, 53, 55, 56, 57, 48, 49, 51, 52 } [n - 1];
 
          if (n <= 4) {
             buf[4] = mod;
-            buf[5] = 80 + (n - 1);
+            buf[5] = 80 + n - 1;
             buf[6] = 0;
          }
          else {
@@ -366,7 +363,7 @@ char *get_key_code(TermKeyKey *key) {
       }
    }
    else if (key->type == TERMKEY_TYPE_UNICODE) {
-      int c = key->code.codepoint;
+      char c = key->code.codepoint;
 
       if (key->modifiers & TERMKEY_KEYMOD_CTRL)
          c -= 0x60;

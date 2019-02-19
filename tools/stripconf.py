@@ -11,7 +11,7 @@ parser.add_argument('-v', default='conf')
 args = parser.parse_args()
 
 words = (
-    'section',
+    'mode',
     'bind',
     'repeat',
     'ignore_unmapped',

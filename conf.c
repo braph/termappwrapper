@@ -32,8 +32,8 @@ static int lex_args(char ***args) {
    return n;
 }
 
-static int section(int argc, char *args[]) {
-   if (! check_args(argc, "section", 0))
+static int mode(int argc, char *args[]) {
+   if (! check_args(argc, "mode", 0))
       return 0;
 
    if (! (context.current_mode = get_keymode(args[0])))
@@ -110,10 +110,10 @@ static struct {
    const char *name;
    int       (*func)(int, char*[]);
 } conf_commands[] = {
-   { "bind",            &bind             },
-   { "section",         &section          },
-   { "repeat",          &repeat           },
-   { "ignore_unmapped",  &ignore_unmapped   }
+   { "bind",             &bind            },
+   { "mode",             &mode            },
+   { "repeat",           &repeat          },
+   { "ignore_unmapped",  &ignore_unmapped }
 };
 #define CONF_COMMANDS_SIZE (sizeof(conf_commands)/sizeof(conf_commands[0]))
 

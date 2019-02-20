@@ -30,3 +30,25 @@ int check_n_args(int argc, int n) {
 
    return 1;
 }
+
+char *args_find_optind(int argc, char *args[]) {
+   int pos = 0;
+
+   for (int i = 0; i < argc; ++i) {
+      if (argv[i][0] == '-') {
+         if (argv[i][1] == '-') {
+            return i + 1;
+         }
+         else if (pos) {
+            write_error("found option after argument list: %s\n", argv[i]);
+            return -1;
+         }
+         else {
+            pos = i + 1;
+         }
+      }
+   }
+
+   return pos;
+}
+

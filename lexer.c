@@ -206,24 +206,16 @@ int lex() {
    int c;
 
    while ((c = lex_getc()) != EOF) {
-      if (c == '"') {
-         return read_double_quote();
-      }
-      else if (c == '\'') {
-         return read_single_quote();
-      }
-      else if (c == ' ' || c == '\t') {
-         (void)0;
-      }
-      else if (c == '#') {
-         consume_comment();
-      }
-      else if (c == '\n' || c == ';') {
-         return LEX_TOKEN_END;
-      }
-      else {
-         lex_ungetc(c);
-         return read_word();
+      switch (c) {
+         case '#':   consume_comment();
+         case '"':   return read_double_quote();
+         case '\'':  return read_single_quote();
+         case ';':
+         case '\n':  return LEX_TOKEN_END;
+         case ' ':
+         case '\t':  break;
+         default:    lex_ungetc(c);
+                     return read_word();
       }
    }
 

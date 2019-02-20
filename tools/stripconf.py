@@ -27,11 +27,11 @@ def strip_conf(s):
     r = ''
     for l in s.split('\n'):
         l = l.strip()
+        l = l.rstrip(';')
 
         if not l:
             continue
 
-        l = l.rstrip(';')
         if l.startswith('#'):
             continue
 

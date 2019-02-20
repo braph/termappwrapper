@@ -16,7 +16,7 @@ goto_parse(int argc, char *args[]) {
 
    keymode_t *km = get_keymode(args[0]);
    if (! km) {
-      write_error("mode not found: %s", args[0]);
+      write_error("mode not found: %s (maybe you have to pre-declare it)", args[0]);
       return NULL;
    }
 

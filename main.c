@@ -21,22 +21,24 @@
 #define USAGE \
 "Usage: %s [OPTIONS] PROGRAM [ARGUMENTS...]\n\n" \
 "OPTIONS\n\n"                                    \
-" -c file\t"    "Read config file\n"             \
-" -C string\t"  "Read config string\n"           \
-" -m mode\t"    "Start in mode\n"                \
+" -c file\t"         "Read config file\n"             \
+" -C string\t"       "Read config string\n"           \
+" -m mode\t"         "Start in mode\n"                \
+" -b key cmd\t"      "Alias for 'bind key cmd'\n"     \
+" -k <key in> <key out>" "Alias for 'bind key_in key key_out'\n" \
 " -v\t\t"       "Load vi config\n"
-#define GETOPT_OPTS "+c:C:m:hv"
+#define GETOPT_OPTS "+c:C:m:b:k:hv"
 
 /*
  * TODO: repeat-max
  * TODO: instant-leave mode?
  * TODO: unbind, bind check for duplicate key bind
- * TODO: resize pty
  */
 
 void  cleanup();
 void *redirect_to_stdout();
 int   forkapp(char **, int*, pid_t*);
+void  update_pty_size();
 
 pthread_t      redir_thread;
 struct termios restore_termios;
@@ -44,6 +46,7 @@ struct termios restore_termios;
 int main(int argc, char *argv[]) {
    int         c;
    char        *mode = NULL;
+   char        *buf2;
 
    context_init();
 
@@ -65,7 +68,19 @@ int main(int argc, char *argv[]) {
       case 'C': 
          if (read_conf_string(optarg) < 0)
             errx(1, "Option -C '%s': %s", optarg, get_error());
+      case 'b':
+         asprintf(&buf2, "bind %s", optarg);
+         if (read_conf_string(buf2) < 0)
+            errx(1, "Option -b '%s': %s", optarg, get_error());
+         free(buf2);
+      case 'k':
+         asprintf(&buf2, "bind %s key %s", optarg, argv[optind++]);
+         printf("%s\n", buf2);
+         if (read_conf_string(buf2) < 0)
+            errx(1, "Option -k '%s' '%s': %s", optarg, argv[--optind], get_error());
+         free(buf2);
       case 'v':
+         mode = "vi";
          if (read_conf_string(VI_CONF) < 0)
             errx(1, "%s", get_error());
       case 'm':
@@ -89,9 +104,11 @@ int main(int argc, char *argv[]) {
    if (forkapp(&argv[optind], &context.program_fd, &context.program_pid) < 0)
       err(1, "Could not start process");
 
+   /*
    if ((errno = pthread_create(&redir_thread,
          NULL, redirect_to_stdout, (void*)&context.program_fd)))
       err(1, "Starting thread failed");
+   */
 
    char      buf[32];
    int       bufi        = 0;
@@ -113,18 +130,18 @@ int main(int argc, char *argv[]) {
    if (tcgetattr(STDIN_FILENO, &termios) == 0) {
       restore_termios      = termios;
       termios.c_iflag     &= ~(IXON|INLCR|ICRNL);
-      termios.c_lflag     &= ~(ICANON|ECHO);
+      termios.c_lflag     &= ~(ICANON|ECHO|ISIG);
       termios.c_cc[VMIN]   = 1;
       termios.c_cc[VTIME]  = 0;
-      termios.c_lflag     &= ~ISIG;
       tcsetattr(STDIN_FILENO, TCSANOW, &termios);
    }
 
    atexit(cleanup);
-   signal(SIGINT, cleanup);
-   signal(SIGTERM, cleanup);
-
+   signal(SIGINT,   cleanup);
+   signal(SIGTERM,  cleanup);
+   signal(SIGWINCH, update_pty_size);
    setbuf(stdin, NULL);
+
    for (;;) {
       for (;;) {
          poll(fds, 2, -1);
@@ -163,13 +180,14 @@ int main(int argc, char *argv[]) {
    return 0;
 }
 
-void cleanup() {
+void cleanup(int sig) {
+   signal(sig, SIG_DFL);
    tcsetattr(STDIN_FILENO, TCSANOW, &restore_termios);
 #if FREE_MEMORY
    termkey_destroy(tk);
    context_free();
    unload_terminfo();
-   pthread_join(redir_thread, NULL);
+   //pthread_join(redir_thread, NULL);
 #endif
    exit(0);
 }
@@ -216,8 +234,8 @@ int forkapp(char **argv, int *ptyfd, pid_t *pid) {
    struct termios tios;
    struct winsize winsz;
 
-   tcgetattr(0, &tios);
-   ioctl(STDOUT_FILENO, TIOCGWINSZ, &winsz);
+   tcgetattr(STDIN_FILENO, &tios);
+   ioctl(STDIN_FILENO, TIOCGWINSZ, &winsz);
       
    *pid = forkpty(ptyfd, NULL, &tios, &winsz);
 
@@ -227,6 +245,17 @@ int forkapp(char **argv, int *ptyfd, pid_t *pid) {
       execvp(argv[0], &argv[0]);
       return -1;
    }
+   else {
+      pid_t p = fork();
+      if (p == 0)
+         redirect_to_stdout((void*)&context.program_fd);
+   }
 
    return 1;
+}
+
+void update_pty_size() {
+   struct winsize ws;
+   if (ioctl(STDIN_FILENO, TIOCGWINSZ, &ws) != -1)
+      ioctl(context.program_fd, TIOCSWINSZ, &ws);
 }

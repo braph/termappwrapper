@@ -25,10 +25,8 @@ char *key_parse_get_code(char *keydef) {
    TermKeyKey key;
    char *seq;
 
-   if (! parse_key(keydef, &key)) {
-      write_error("unknown key: %s", keydef);
+   if (! parse_key(keydef, &key))
       return 0;
-   }
 
    if (! (seq = get_key_code(&key))) {
       write_error("could not get key codes for %s", keydef);

@@ -28,7 +28,7 @@ command_t* get_command(char *name) {
    return NULL;
 }
 
-/* parse single command, appends to binding */
+/* parse single command, append to binding */
 int binding_append_command(int argc, char *args[], binding_t *binding)
 {
    command_t   *cmd = NULL;

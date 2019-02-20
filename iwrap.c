@@ -118,6 +118,20 @@ keymode_get_binding(keymode_t *km, TermKeyKey *key) {
    return NULL;
 }
 
+void
+keymode_del_binding(keymode_t *km, TermKeyKey *key) {
+   for (int i=0; i < km->n_bindings; ++i)
+      if (! termkey_keycmp(tk, key, &km->bindings[i]->key)) {
+         binding_free(km->bindings[i]);
+         for (++i; i < km->n_bindings; ++i)
+            km->bindings[i - 1] = km->bindings[i];
+         break;
+      }
+
+   km->n_bindings--;
+   km->bindings = realloc(km->bindings, km->n_bindings * sizeof(binding_t*));
+}
+
 #if FREE_MEMORY
 void keymode_free(keymode_t *km) {
    for (int i=0; i < km->n_bindings; ++i) {
@@ -140,6 +154,8 @@ void binding_free(binding_t *binding) {
    for (int i=0; i < binding->n_commands; ++i)
       command_call_free(&binding->commands[i]);
    free(binding->commands);
+   binding->commands = NULL;
+   binding->n_commands = 0;
 }
 
 void command_execute(command_call_t *cmd, TermKeyKey *key) {

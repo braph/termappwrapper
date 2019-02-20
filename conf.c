@@ -82,17 +82,15 @@ static int bind(int argc, char *args[]) {
    TermKeyKey key;
    binding_t  *binding;
 
-   if (! check_args(argc, "key", "+command"))
+   if (! check_args(argc, "key", "+command", 0))
       return 0;
 
-   if (! (parse_key(args[0], &key))) {
-      write_error("invalid key %s", args[0]);
+   if (! parse_key(args[0], &key))
       return 0;
-   }
 
    binding = keymode_get_binding(context.current_mode, &key);
    if (binding) {
-      // clear binding
+      binding_free(binding);
    }
    else {
       binding = malloc(sizeof(binding_t));
@@ -102,26 +100,55 @@ static int bind(int argc, char *args[]) {
       keymode_add_binding(context.current_mode, binding);
    }
 
-   // TODO FREE
+   // TODO FREE ON ERROR
    return binding_append_commands(argc - 1, &args[1], binding);
 }
+
+static int unbind(int argc, char *args[]) {
+   TermKeyKey key;
+
+   if (! check_args(argc, "key", 0))
+      return 0;
+
+   if (! parse_key(args[0], &key))
+      return 0;
+
+   keymode_del_binding(context.current_mode, &key);
+   return 1;
+}
+
+typedef int (*conf_command_t)(int, char*[]);
 
 static struct {
    const char *name;
    int       (*func)(int, char*[]);
 } conf_commands[] = {
    { "bind",             &bind            },
+   { "unbind",           &unbind          },
    { "mode",             &mode            },
    { "repeat",           &repeat          },
    { "ignore_unmapped",  &ignore_unmapped }
 };
 #define CONF_COMMANDS_SIZE (sizeof(conf_commands)/sizeof(conf_commands[0]))
 
+static
+conf_command_t
+get_conf_command(char *name, const char **expaned_name) {
+   for (int i=0; i < CONF_COMMANDS_SIZE; ++i)
+      if (strprefix(conf_commands[i].name, name)) {
+         *expaned_name = conf_commands[i].name;
+         return conf_commands[i].func;
+      }
+   return NULL;
+}
+
 int read_conf_stream(FILE *fh) {
-   int         i;
    int         ret = 0;
    char        **args = NULL;
    int         nargs;
+
+   const char *expaned_name;
+   conf_command_t conf_command;
 
    lex_init(fh);
 
@@ -136,19 +163,13 @@ int read_conf_stream(FILE *fh) {
          continue;
       }
 
-      for (i = 0; i < CONF_COMMANDS_SIZE; ++i) {
-         if (strprefix(conf_commands[i].name, args[0])) {
-            if (! conf_commands[i].func(nargs - 1, &args[1])) {
-               prepend_error("%s", conf_commands[i].name);
-               ret = -1;
-               goto END;
-            }
-            break;
-         }
-      }
-
-      if (i == CONF_COMMANDS_SIZE) {
+      if (! (conf_command = get_conf_command(args[0], &expaned_name))) {
          write_error("unknown command: %s", args[0]);
+         ret = -1;
+         goto END;
+      }
+      else if (! conf_command(nargs - 1, &args[1])) {
+         prepend_error("%s", expaned_name);
          ret = -1;
          goto END;
       }

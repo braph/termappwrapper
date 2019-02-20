@@ -49,6 +49,7 @@ void       keymode_init(keymode_t*, const char*);
 void       keymode_free(keymode_t*);
 void       keymode_add_binding(keymode_t*, binding_t*);
 binding_t* keymode_get_binding(keymode_t*, TermKeyKey*);
+void       keymode_del_binding(keymode_t*, TermKeyKey*);
 keymode_t* get_keymode(char *name);
 keymode_t* add_keymode(char *name);
 

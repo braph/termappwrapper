@@ -183,7 +183,12 @@ TermKeyKey* parse_key_new(char *def) {
 
 int parse_key(char *def, TermKeyKey *key) {
    const char *last_char = termkey_strpkey(tk, def, key, 0);
-   return (*last_char == 0);
+   if (*last_char != 0) {
+      write_error("invalid key %s", def);
+      return 0;
+   }
+
+   return 1;
 }
 
 char *format_key(TermKeyKey *key) {

@@ -21,24 +21,24 @@
 #define USAGE \
 "Usage: %s [OPTIONS] PROGRAM [ARGUMENTS...]\n\n" \
 "OPTIONS\n\n"                                    \
-" -c file\t"         "Read config file\n"             \
-" -C string\t"       "Read config string\n"           \
-" -m mode\t"         "Start in mode\n"                \
-" -b key cmd\t"      "Alias for 'bind key cmd'\n"     \
-" -k <key in> <key out>" "Alias for 'bind key_in key key_out'\n" \
-" -v\t\t"       "Load vi config\n"
+" -c file\t"                  "Read config file\n"             \
+" -C string\t"                "Read config string\n"           \
+" -m mode\t"                  "Start in mode\n"                \
+" -b key cmd\t"               "Alias for 'bind key cmd'\n"     \
+" -k <key in> <key out>"      "Alias for 'bind key_in key key_out'\n" \
+" -v\t\t"                     "Load vi config\n"
 #define GETOPT_OPTS "+c:C:m:b:k:hv"
 
 /*
  * TODO: repeat-max
  * TODO: instant-leave mode?
- * TODO: unbind, bind check for duplicate key bind
  */
 
 void  cleanup();
+void  update_pty_size(int);
+void  sighandler(int);
 void *redirect_to_stdout();
 int   forkapp(char **, int*, pid_t*);
-void  update_pty_size();
 
 pthread_t      redir_thread;
 struct termios restore_termios;
@@ -126,19 +126,19 @@ int main(int argc, char *argv[]) {
       .modifiers = 0
    };
 
-   struct termios termios;
-   if (tcgetattr(STDIN_FILENO, &termios) == 0) {
-      restore_termios      = termios;
-      termios.c_iflag     &= ~(IXON|INLCR|ICRNL);
-      termios.c_lflag     &= ~(ICANON|ECHO|ISIG);
-      termios.c_cc[VMIN]   = 1;
-      termios.c_cc[VTIME]  = 0;
-      tcsetattr(STDIN_FILENO, TCSANOW, &termios);
+   struct termios tios;
+   if (tcgetattr(STDIN_FILENO, &tios) == 0) {
+      restore_termios = tios;
+      tios.c_iflag    &= ~(IXON|INLCR|ICRNL);
+      tios.c_lflag    &= ~(ICANON|ECHO|ISIG);
+      tios.c_cc[VMIN]  = 1;
+      tios.c_cc[VTIME] = 0;
+      tcsetattr(STDIN_FILENO, TCSANOW, &tios);
    }
 
    atexit(cleanup);
-   signal(SIGINT,   cleanup);
-   signal(SIGTERM,  cleanup);
+   signal(SIGINT,   sighandler);
+   signal(SIGTERM,  sighandler);
    signal(SIGWINCH, update_pty_size);
    setbuf(stdin, NULL);
 
@@ -180,8 +180,7 @@ int main(int argc, char *argv[]) {
    return 0;
 }
 
-void cleanup(int sig) {
-   signal(sig, SIG_DFL);
+void cleanup() {
    tcsetattr(STDIN_FILENO, TCSANOW, &restore_termios);
 #if FREE_MEMORY
    termkey_destroy(tk);
@@ -189,6 +188,11 @@ void cleanup(int sig) {
    unload_terminfo();
    //pthread_join(redir_thread, NULL);
 #endif
+   exit(0);
+}
+
+void sighandler(int sig) {
+   signal(sig, SIG_DFL);
    exit(0);
 }
 
@@ -213,7 +217,7 @@ void *redirect_to_stdout(void *_fd)
       }
 
       b = buffer;
-      for (int i = 0; i < 5; i++) {
+      for (int i=0; i < 5; i++) {
          bytes_written = write(STDOUT_FILENO, b, bytes_read);
 
          if (bytes_written >= 0) {
@@ -231,13 +235,13 @@ void *redirect_to_stdout(void *_fd)
 }
 
 int forkapp(char **argv, int *ptyfd, pid_t *pid) {
+   struct winsize wsz;
    struct termios tios;
-   struct winsize winsz;
 
    tcgetattr(STDIN_FILENO, &tios);
-   ioctl(STDIN_FILENO, TIOCGWINSZ, &winsz);
+   ioctl(STDIN_FILENO, TIOCGWINSZ, &wsz);
       
-   *pid = forkpty(ptyfd, NULL, &tios, &winsz);
+   *pid = forkpty(ptyfd, NULL, &tios, &wsz);
 
    if (*pid < 0)
       return -1;
@@ -254,7 +258,7 @@ int forkapp(char **argv, int *ptyfd, pid_t *pid) {
    return 1;
 }
 
-void update_pty_size() {
+void update_pty_size(int _) {
    struct winsize ws;
    if (ioctl(STDIN_FILENO, TIOCGWINSZ, &ws) != -1)
       ioctl(context.program_fd, TIOCSWINSZ, &ws);

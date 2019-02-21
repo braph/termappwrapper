@@ -46,7 +46,8 @@ struct termios restore_termios;
 int main(int argc, char *argv[]) {
    int         c;
    char        *mode = NULL;
-   char        *buf2;
+   char        *buf2 = NULL;
+   const char  *arg2 = NULL;
 
    context_init();
 
@@ -69,16 +70,17 @@ int main(int argc, char *argv[]) {
          if (read_conf_string(optarg) < 0)
             errx(1, "Option -C '%s': %s", optarg, get_error());
       case 'b':
-         asprintf(&buf2, "bind %s", optarg);
+         buf2 = realloc(buf2, sizeof("bind.") + strlen(optarg));
+         sprintf(buf2, "bind %s", optarg);
          if (read_conf_string(buf2) < 0)
             errx(1, "Option -b '%s': %s", optarg, get_error());
-         free(buf2);
       case 'k':
-         asprintf(&buf2, "bind %s key %s", optarg, argv[optind++]);
-         printf("%s\n", buf2);
+         if ((arg2 = argv[++optind]) == NULL)
+            errx(1, "Option -k '%s': Missing argument", optarg);
+         buf2 = realloc(buf2, sizeof("bind..key.") + strlen(optarg) + strlen(arg2));
+         sprintf(buf2, "bind %s key %s", optarg, arg2);
          if (read_conf_string(buf2) < 0)
-            errx(1, "Option -k '%s' '%s': %s", optarg, argv[--optind], get_error());
-         free(buf2);
+            errx(1, "Option -k '%s' '%s': %s", optarg, arg2, get_error());
       case 'v':
          mode = "vi";
          if (read_conf_string(VI_CONF) < 0)
@@ -89,6 +91,7 @@ int main(int argc, char *argv[]) {
          return 1;
       }
       #undef case
+   free(buf2);
 
    if (optind == argc)
       errx(1, "Missing command");
@@ -104,18 +107,16 @@ int main(int argc, char *argv[]) {
    if (forkapp(&argv[optind], &context.program_fd, &context.program_pid) < 0)
       err(1, "Could not start process");
 
-   /*
    if ((errno = pthread_create(&redir_thread,
          NULL, redirect_to_stdout, (void*)&context.program_fd)))
       err(1, "Starting thread failed");
-   */
 
    char      buf[32];
    int       bufi        = 0;
    const int escdelay_ms = 10;
 
    struct pollfd fds[2] = {
-      { .fd = STDOUT_FILENO,      .events = POLLIN },
+      { .fd = STDIN_FILENO,       .events = POLLIN },
       { .fd = context.program_fd, .events = POLLIN }
    };
 
@@ -129,8 +130,10 @@ int main(int argc, char *argv[]) {
    struct termios tios;
    if (tcgetattr(STDIN_FILENO, &tios) == 0) {
       restore_termios = tios;
+      tios.c_iflag    |= IGNBRK;
       tios.c_iflag    &= ~(IXON|INLCR|ICRNL);
-      tios.c_lflag    &= ~(ICANON|ECHO|ISIG);
+      tios.c_lflag    &= ~(ICANON|ECHO|ECHONL|ISIG);
+      tios.c_oflag    &= ~(OPOST|ONLCR|OCRNL|ONLRET);
       tios.c_cc[VMIN]  = 1;
       tios.c_cc[VTIME] = 0;
       tcsetattr(STDIN_FILENO, TCSANOW, &tios);
@@ -186,7 +189,7 @@ void cleanup() {
    termkey_destroy(tk);
    context_free();
    unload_terminfo();
-   //pthread_join(redir_thread, NULL);
+   pthread_join(redir_thread, NULL);
 #endif
    exit(0);
 }
@@ -248,11 +251,6 @@ int forkapp(char **argv, int *ptyfd, pid_t *pid) {
    else if (*pid == 0) {
       execvp(argv[0], &argv[0]);
       return -1;
-   }
-   else {
-      pid_t p = fork();
-      if (p == 0)
-         redirect_to_stdout((void*)&context.program_fd);
    }
 
    return 1;

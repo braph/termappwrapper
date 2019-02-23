@@ -8,7 +8,6 @@
 #include <errno.h>
 #include <poll.h>
 #include <stdio.h>
-#include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
@@ -28,7 +27,7 @@
 " -b key cmd\t"               "Alias for 'bind key cmd'\n"     \
 " -k <key in> <key out>"      "Alias for 'bind key_in key key_out'\n" \
 " -v\t\t"                     "Load vi config\n"
-#define GETOPT_OPTS "+c:C:m:b:k:hvu:"
+#define GETOPT_OPTS "+c:C:m:b:k:hv"
 
 /* TODO: repeat-max
  * TODO: instant-leave mode? */
@@ -38,13 +37,13 @@ void  cleanup();
 void  update_pty_size(int);
 void  sighandler(int);
 int   forkapp(char **, int*, pid_t*);
-char* alias(const char*, ...);
-
-char *alias_buf = NULL;
 
 int main(int argc, char *argv[]) {
+   printf("%d\n", sizeof(context));
+
    int         c;
    char        *mode   = "global";
+   char        *cmdbuf = NULL;
    const char  *arg2   = NULL;
 
    context_init();
@@ -62,8 +61,6 @@ int main(int argc, char *argv[]) {
          return help(argv[0]);
       case 'm':
          mode = optarg;
-         if (! (context.current_mode = get_keymode(mode)))
-            errx(1, "Option -m: unknown mode: %s", mode);
       case 'c':
          if (read_conf_file(optarg) < 0)
             errx(1, "Option -c '%s': %s", optarg, get_error());
@@ -71,15 +68,16 @@ int main(int argc, char *argv[]) {
          if (read_conf_string(optarg) < 0)
             errx(1, "Option -C '%s': %s", optarg, get_error());
       case 'b':
-         if (read_conf_string(alias("bind %s", optarg)) < 0)
+         cmdbuf = realloc(cmdbuf, sizeof("bind.") + strlen(optarg));
+         sprintf(cmdbuf, "bind %s", optarg);
+         if (read_conf_string(cmdbuf) < 0)
             errx(1, "Option -b '%s': %s", optarg, get_error());
-      case 'u':
-         if (read_conf_string(alias("unbind %s", optarg)) < 0)
-            errx(1, "Option -u '%s': %s", optarg, get_error());
       case 'k':
          if ((arg2 = argv[++optind]) == NULL)
             errx(1, "Option -k '%s': Missing argument", optarg);
-         if (read_conf_string(alias("bind %s key %s", optarg, arg2)) < 0)
+         cmdbuf = realloc(cmdbuf, sizeof("bind..key.") + strlen(optarg) + strlen(arg2));
+         sprintf(cmdbuf, "bind %s key %s", optarg, arg2);
+         if (read_conf_string(cmdbuf) < 0)
             errx(1, "Option -k '%s' '%s': %s", optarg, arg2, get_error());
       case 'v':
          mode = "vi";
@@ -89,7 +87,7 @@ int main(int argc, char *argv[]) {
          return 1;
       }
       #undef case
-   free(alias_buf);
+   free(cmdbuf);
 
    if (optind == argc)
       errx(1, "Missing command");
@@ -110,10 +108,18 @@ int main(int argc, char *argv[]) {
       return execlp("tmux", "tmux", "setw", "escape-time", "50", NULL);
    }
 
-   if (tcgetattr(STDIN_FILENO, &context.tios_restore) != 0)
-      err(1, "TODO");
-
-   set_input_mode();
+   #define tios context.tios_wrap
+   if (tcgetattr(STDIN_FILENO, &tios) == 0) {
+      context.tios_restore = tios;
+      tios.c_iflag    |= IGNBRK;
+      tios.c_iflag    &= ~(IXON|INLCR|ICRNL);
+      tios.c_lflag    &= ~(ICANON|ECHO|ECHONL|ISIG);
+      tios.c_oflag    &= ~(OPOST|ONLCR|OCRNL|ONLRET);
+      tios.c_cc[VMIN]  = 1;
+      tios.c_cc[VTIME] = 0;
+      tcsetattr(STDIN_FILENO, TCSANOW, &tios);
+   }
+   #undef tios
 
    atexit(cleanup);
    signal(SIGINT,   sighandler);
@@ -188,28 +194,6 @@ int help(char *prog) {
    }
 
    return 0;
-}
-
-char* alias(const char *template, ...) {
-   va_list ap;
-   int nargs = 0;
-   int sz = 1;
-
-   for (const char *s = strchr(template, '%'); s; s = strchr(s + 1, '%'))
-      ++nargs;
-
-   va_start(ap, template);
-   for (int i=0; i < nargs; ++i)
-      sz += strlen(va_arg(ap, char*));
-   va_end(ap);
-
-   alias_buf = realloc(alias_buf, sz);
-
-   va_start(ap, template);
-   vsprintf(alias_buf, template, ap);
-   va_end(ap);
-
-   return alias_buf;
 }
 
 void cleanup() {

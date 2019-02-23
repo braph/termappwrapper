@@ -1,9 +1,9 @@
 PROGNAME   = termappwrapper
-LIBS 		  = -lutil -ltermkey -lcurses -lpthread
+LIBS 		  = -lutil -ltermkey -lcurses -lpthread -lreadline
 PREFIX     = /usr
 DEBUG 	  = 0
 FREE  	  = 0
-CC_FLAGS   = -Wall
+CC_FLAGS   = -Wall #-O2
 
 ifeq ($(DEBUG), 1)
 	FREE = 1
@@ -12,14 +12,15 @@ endif
 
 CC_FLAGS += -DFREE_MEMORY=$(FREE) -DDEBUG=$(DEBUG)
 
-CMDS = goto mask write key signal ignore
+CMDS = goto mask write key signal ignore #readline
 CMDS := $(addprefix cmd_, $(CMDS))
 
-OBJS  = termkeystuff bind_parse iwrap conf lexer common options $(CMDS)
+OBJS  = termkeystuff bind_parse iwrap conf lexer common options commands $(CMDS)
 OBJS := $(addsuffix .o, $(OBJS))
 
 build: $(OBJS)
 	gcc $(CC_FLAGS) $(LIBS) objs/*.o main.c -o $(PROGNAME)
+	#strip $(PROGNAME)
 
 %.o:
 	@mkdir -p objs

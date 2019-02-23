@@ -4,8 +4,6 @@
 #include <stdlib.h>
 
 static FILE         *lex_in;
-static int           lex_line;
-static int           lex_line_pos;
 static int           lex_is_eof;
 
 #define              LEX_TOKEN_BUF_INC 1024

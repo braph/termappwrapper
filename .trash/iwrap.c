@@ -52,3 +52,30 @@ char *args_find_optind(int argc, char *args[]) {
    return pos;
 }
 
+void* cmd_parse_none(int argc, char **args) {
+   if (! check_args(argc, 0))
+      return NULL;
+   return (void*)1;
+}
+
+   /*
+   char *s = get_key_code(key);
+   if   (s)  write(context.program_fd, s, strlen(s));
+   fprintf(stderr, "%10s: ", format_key(key));
+   for (int i = 0; i < len; ++i) fprintf(stderr, " %3d", raw[i]);
+   for (int i = len; i < 9; ++i) fprintf(stderr, " %3d", 0);
+   fprintf(stderr, "\n");
+   */
+
+   /*
+   printf("ign=%d, type=%d resul=%d\n",
+         context.current_mode->ignore_unmapped,
+         TERMKEY_TYPE_TO_FLAG(key->type),
+         context.current_mode->ignore_unmapped & TERMKEY_TYPE_TO_FLAG(key->type));
+   */
+
+   /*
+   if (key->type == TERMKEY_TYPE_UNICODE) {
+      if (key->code.codepoint == 's') {
+   */
+

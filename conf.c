@@ -47,21 +47,21 @@ static int ignore_unmapped(int argc, char *args[]) {
 
    int flags = 0;
 
-   for (int i=0; i < argc; ++i)
-      if (strprefix(args[0], "all"))
+   for (int i = argc; i--; )
+      if (strprefix(args[i], "all"))
          flags |= (TERMKEY_TYPE_TO_FLAG(TERMKEY_TYPE_UNICODE) |
                    TERMKEY_TYPE_TO_FLAG(TERMKEY_TYPE_KEYSYM)  |
                    TERMKEY_TYPE_TO_FLAG(TERMKEY_TYPE_FUNCTION));
-      else if (strprefix(args[0], "char"))
+      else if (strprefix(args[i], "char"))
          flags |= TERMKEY_TYPE_TO_FLAG(TERMKEY_TYPE_UNICODE);
-      else if (strprefix(args[0], "sym"))
+      else if (strprefix(args[i], "sym"))
          flags |= TERMKEY_TYPE_TO_FLAG(TERMKEY_TYPE_KEYSYM);
-      else if (strprefix(args[0], "function"))
+      else if (strprefix(args[i], "function"))
          flags |= TERMKEY_TYPE_TO_FLAG(TERMKEY_TYPE_FUNCTION);
-      else if (strprefix(args[0], "mouse"))
+      else if (strprefix(args[i], "mouse"))
          flags |= TERMKEY_TYPE_TO_FLAG(TERMKEY_TYPE_MOUSE);
       else {
-         write_error("unknown key type: %s", args[0]);
+         write_error("unknown key type: %s", args[i]);
          return 0;
       }
 
@@ -80,28 +80,72 @@ static int repeat(int argc, char *args[]) {
 
 static int bind(int argc, char *args[]) {
    TermKeyKey key;
-   binding_t  *binding;
+   binding_t  *binding, *binding_next;
+   char       *keydef;
 
-   if (! check_args(argc, "key", "+command", 0))
+   if (! (keydef = args_get_arg(&argc, &args, "key")))
       return 0;
 
-   if (! parse_key(args[0], &key))
+   if (! parse_key(keydef, &key))
       return 0;
-
+   
    binding = keymode_get_binding(context.current_mode, &key);
-   if (binding) {
-      binding_free(binding);
-   }
-   else {
-      binding = malloc(sizeof(binding_t));
+   if (! binding) {
+      binding             = malloc(sizeof(binding_t));
       binding->key        = key;
-      binding->commands   = NULL;
-      binding->n_commands = 0;
+      binding->size       = 0;
+      binding->p.commands = NULL;
+      binding->type       = BINDING_TYPE_CHAINED;
       keymode_add_binding(context.current_mode, binding);
    }
+   else {
+      if (binding->type == BINDING_TYPE_COMMAND) {
+         write_error("Overwriting key binding"); // TODO
+         return 0;
+      }
+   }
 
-   // TODO FREE ON ERROR
-   return binding_append_commands(argc - 1, &args[1], binding);
+   // read till last keydef
+   while (argc > 1 && parse_key(args[0], &key)) {
+      args_get_arg(&argc, &args, NULL);
+      binding_next = binding_get_binding(binding, &key);
+
+      if (! binding_next) {
+         binding_next             = malloc(sizeof(binding_t));
+         binding_next->key        = key;
+         binding_next->size       = 0;
+         binding_next->p.commands = NULL;
+         binding_next->type       = BINDING_TYPE_CHAINED;
+         binding = binding_add_binding(binding, binding_next);
+      }
+      else {
+         if (binding_next->type == BINDING_TYPE_COMMAND) {
+            write_error("Overwriting key binding"); // TODO
+            return 0;
+         }
+
+         binding = binding_next;
+      }
+   }
+
+   if (binding->type == BINDING_TYPE_COMMAND) {
+      write_error("Overwriting key binding");
+      return 0;
+   }
+
+   if (binding->type == BINDING_TYPE_CHAINED && binding->size > 0) {
+      write_error("Overwriting key binding");
+      return 0;
+   }
+
+   if (argc == 0) {
+      write_error("missing command");
+      return 0;
+   }
+
+   binding->type = BINDING_TYPE_COMMAND;
+
+   return binding_append_commands(argc, args, binding);
 }
 
 static int unbind(int argc, char *args[]) {
@@ -164,12 +208,12 @@ int read_conf_stream(FILE *fh) {
       }
 
       if (! (conf_command = get_conf_command(args[0], &expaned_name))) {
-         write_error("unknown command: %s", args[0]);
+         write_error("%d:%d: unknown command: %s", lex_line, lex_line_pos, args[0]);
          ret = -1;
          goto END;
       }
       else if (! conf_command(nargs - 1, &args[1])) {
-         prepend_error("%s", expaned_name);
+         prepend_error("%d:%d: %s", lex_line, lex_line_pos, expaned_name);
          ret = -1;
          goto END;
       }

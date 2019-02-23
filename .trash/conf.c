@@ -11,3 +11,9 @@ static int c_goto(int argc, char *args[]) {
    return 1;
 }
 
+   if (! check_args(argc, "key", "+command", 0))
+      return 0;
+
+   if (! parse_key(args[0], &key))
+      return 0;
+

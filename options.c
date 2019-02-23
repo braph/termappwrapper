@@ -15,17 +15,17 @@ int parse_opts(int argc, char *args[], const char *optstr, option **opts) {
    *opts = NULL;
 
    for (i = 0; i < argc; ++i) {
-      if (args[i][0] != '-')   // is argument
+      if (args[i][0] != '-')    // is argument
          goto RETURN;
-      if (args[i][1] == 0)     // argument "-"
+      if (args[i][1] == 0)      // argument "-"
          goto RETURN;
-      if (args[i][1] == '-') { // end of options "--"
-         if (args[i][2] != '-') {
+      if (args[i][1] == '-') { 
+         if (args[i][2] == '0') // end of options "--"
+            goto RETURN;
+         else {
             write_error("long options not supported: %s", args[i]);
             goto ERROR;
          }
-         else
-            goto RETURN;
       }
 
       c = &args[i][1];

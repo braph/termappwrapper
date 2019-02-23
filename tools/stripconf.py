@@ -10,18 +10,18 @@ parser.add_argument('-c', action='store_true')
 parser.add_argument('-v', default='conf')
 args = parser.parse_args()
 
-words = (
-    'mode',
-    'bind',
-    'repeat',
-    'ignore_unmapped',
+words = {
+    'mode':             'mo',
+    'bind':             'b',
+    'repeat':           're',
+    'ignore_unmapped':  'ig',
 
-    'goto',
-    'write',
-    'mask',
-    'key',
-    'ignore'
-)
+    'goto':             'go',
+    'write':            'wr',
+    'mask':             'ma',
+    'key':              'ke',
+    'ignore':           'ig'
+}
 
 def strip_conf(s):
     r = ''
@@ -37,8 +37,8 @@ def strip_conf(s):
 
         l = re.sub(' +', ' ', l)
 
-        for word in words:
-            l = l.replace(word, word[0])
+        for search, replace in words.items():
+            l = l.replace(search, replace)
 
         r += '%s;\n' % l
     return r

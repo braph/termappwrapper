@@ -1,31 +1,26 @@
 #include "iwrap.h"
 
-/*
- * Switch mode
- */
-
 static void
-goto_call(command_call_t *cmd, TermKeyKey *key) {
+call(command_call_t *cmd, TermKeyKey *key) {
    context.current_mode = (keymode_t*) cmd->arg;
 }
 
 static void*
-goto_parse(int argc, char *args[]) {
-   if (! check_args(argc, "mode", 0))
-      return NULL;
-
+parse(int argc, char *args[], option* options) {
    keymode_t *km = get_keymode(args[0]);
-   if (! km) {
-      write_error("mode not found: %s (maybe you have to pre-declare it)", args[0]);
-      return NULL;
-   }
 
-   return (void*) km;
+   if (! km)
+      write_error("mode not found: %s (maybe you have to pre-declare it)", args[0]);
+
+   return (void*) km; // is NULL if failed
 }
 
 command_t command_goto = {
    .name  = "goto",
-   .call  = &goto_call,
-   .parse = &goto_parse,
+   .desc  = "Switch current input mode",
+   .args  = (const char*[]) { "MODE", 0 },
+   .opts  = NULL,
+   .call  = &call,
+   .parse = &parse,
    .free  = NULL
 };

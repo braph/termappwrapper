@@ -25,7 +25,7 @@ int name2signal(char *name) {
    if (! strncasecmp(name, "SIG", 3))
       name += 3;
 
-   for (int i = 0; i < SIGNAL_SIZE; ++i)
+   for (int i = SIGNAL_SIZE; i--; )
       if (! strcasecmp(name, signals[i].name))
          return signals[i].number;
 
@@ -50,23 +50,21 @@ void signal_call(command_call_t *cmd, TermKeyKey *key) {
 }
 
 static
-void* signal_parse(int argc, char *args[])
+void* signal_parse(int argc, char *args[], option *options)
 {
    int number;
 
-   if (! check_args(argc, "signal", 0))
-      return NULL;
-
-   if (! (number = name2signal(args[0]))) {
+   if (! (number = name2signal(args[0])))
       write_error("unknown signal");
-      return NULL;
-   }
 
-   return (void*) (uintptr_t) number;
+   return (void*) (uintptr_t) number; // is NULL if failed
 }
 
 command_t command_signal = {
    .name  = "signal",
+   .desc  = "Send signal to program",
+   .args  = (const char *[]) { "SIGNAL", 0 },
+   .opts  = NULL,
    .parse = &signal_parse,
    .call  = &signal_call,
    .free  = NULL

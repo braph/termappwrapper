@@ -1,6 +1,8 @@
 #include "termkeystuff.h"
+#include "iwrap.h"
 
 #include <stdio.h>
+#include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
 #include <term.h>
@@ -182,13 +184,44 @@ TermKeyKey* parse_key_new(char *def) {
 }
 
 int parse_key(char *def, TermKeyKey *key) {
-   const char *last_char = termkey_strpkey(tk, def, key, 0);
-   if (*last_char != 0) {
-      write_error("invalid key %s", def);
-      return 0;
+   const char *last_char;
+
+   // Try default
+   last_char = termkey_strpkey(tk, def, key, 0);
+   if (last_char != NULL && *last_char == 0)
+      return 1;
+
+   // Try Meta-k, M-k instead of Alt-k, A-k
+   last_char = termkey_strpkey(tk, def, key, TERMKEY_FORMAT_ALTISMETA);
+   if (last_char != NULL && *last_char == 0)
+      return 1;
+
+   // Try Shift-k, Control-k instead of S-k, C-k
+   last_char = termkey_strpkey(tk, def, key, TERMKEY_FORMAT_LONGMOD);
+   if (last_char != NULL && *last_char == 0)
+      return 1;
+
+   // TODO...
+
+   // Caret notation ^K/^k
+   if (def[0] == '^') {
+      // Try ^K
+      last_char = termkey_strpkey(tk, def, key, TERMKEY_FORMAT_CARETCTRL);
+      if (last_char != NULL && *last_char == 0)
+         return 1;
+
+      // Try ^k
+      if (def[1] >= 'a' && def[1] <= 'z' && def[2] == 0) {
+         char def2[3] = { '^', 0, 0 };
+         def2[1] = toupper(def[1]);
+         last_char = termkey_strpkey(tk, def2, key, TERMKEY_FORMAT_CARETCTRL);
+         if (last_char != NULL && *last_char == 0)
+            return 1;
+      }
    }
 
-   return 1;
+   write_error("invalid key %s", def);
+   return 0;
 }
 
 char *format_key(TermKeyKey *key) {

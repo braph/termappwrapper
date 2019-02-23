@@ -14,6 +14,9 @@
 #define LEX_TOKEN_WORD                   12
 #define LEX_TOKEN_END                    13
 
+int   lex_line;
+int   lex_line_pos;
+
 int   lex_init(FILE *);
 void  lex_destroy();
 int   lex_eof();

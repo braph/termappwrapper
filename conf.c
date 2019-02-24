@@ -8,7 +8,7 @@
 #include <string.h>
 
 // bind_parse.c
-int binding_append_commands(int, char *[], binding_t*);
+int binding_append_commands(binding_t*, int, char *[]);
 
 static int lex_args(char ***args) {
    int ttype;
@@ -70,7 +70,7 @@ static int ignore_unmapped(int argc, char *args[]) {
 }
 
 static int repeat(int argc, char *args[]) {
-   if (! check_args(argc, "on|off", 0))
+   if (! check_args_new(argc, (const char*[]) { "on|off", 0 }))
       return 0;
 
    if (streq(args[0], "on"))
@@ -88,29 +88,8 @@ static int repeat(int argc, char *args[]) {
 static int bind(int argc, char *args[]) {
    TermKeyKey key;
    binding_t  *binding, *binding_next;
-   char       *keydef;
 
-   if (! (keydef = args_get_arg(&argc, &args, "key")))
-      return 0;
-
-   if (! parse_key(keydef, &key))
-      return 0;
-   
-   binding = keymode_get_binding(context.current_mode, &key);
-   if (! binding) {
-      binding             = malloc(sizeof(binding_t));
-      binding->key        = key;
-      binding->size       = 0;
-      binding->p.commands = NULL;
-      binding->type       = BINDING_TYPE_CHAINED;
-      keymode_add_binding(context.current_mode, binding);
-   }
-   else {
-      if (binding->type == BINDING_TYPE_COMMAND) {
-         write_error("Overwriting key binding"); // TODO
-         return 0;
-      }
-   }
+   binding = context.current_mode->root;
 
    // read till last keydef
    while (argc > 1 && parse_key(args[0], &key)) {
@@ -135,6 +114,11 @@ static int bind(int argc, char *args[]) {
       }
    }
 
+   if (binding == context.current_mode->root) {
+      write_error("missing key");
+      return 0;
+   }
+
    if (binding->type == BINDING_TYPE_COMMAND) {
       write_error("Overwriting key binding");
       return 0;
@@ -151,7 +135,7 @@ static int bind(int argc, char *args[]) {
    }
 
    binding->type = BINDING_TYPE_COMMAND;
-   return binding_append_commands(argc, args, binding);
+   return binding_append_commands(binding, argc, args);
 }
 
 static int unbind(int argc, char *args[]) {
@@ -163,7 +147,7 @@ static int unbind(int argc, char *args[]) {
    if (! parse_key(args[0], &key))
       return 0;
 
-   keymode_del_binding(context.current_mode, &key);
+   binding_del_binding(context.current_mode->root, &key);
    return 1;
 }
 

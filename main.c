@@ -184,9 +184,9 @@ int help(char *prog) {
 
 char* alias(const char *template, ...) {
    va_list ap;
-   int nargs = 0;
-   int sz = 1;
+   int sz = strlen(template);
 
+   int nargs = 0;
    for (const char *s = strchr(template, '%'); s; s = strchr(s + 1, '%'))
       ++nargs;
 

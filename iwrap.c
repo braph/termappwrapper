@@ -2,6 +2,7 @@
 #include "termkeystuff.h"
 #include "common.h"
 
+#include <pty.h>
 #include <poll.h>
 #include <errno.h>
 #include <string.h>
@@ -9,11 +10,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <unistd.h>
-#include <signal.h>
-#include <stropts.h>
-
-#include <termios.h>
-#include <pty.h>
 
 static char* iwrap_error = NULL;
 static int   iwrap_errror_size = 0;
@@ -94,11 +90,13 @@ void context_free() {
 
 
 void keymode_init(keymode_t *km, const char *name) {
-   km->name            = strdup(name);
-   km->bindings        = NULL;
-   km->n_bindings      = 0;
-   km->ignore_unmapped = 0;
-   km->repeat_enabled  = 0;
+   km->name             = strdup(name);
+   km->ignore_unmapped  = 0;
+   km->repeat_enabled   = 0;
+   km->root             = malloc(sizeof(binding_root_t));
+   km->root->size       = 0;
+   km->root->p.bindings = NULL;
+   km->root->type       = BINDING_TYPE_CHAINED;
 }
 
 keymode_t* get_keymode(char *name) {
@@ -122,21 +120,6 @@ keymode_t* add_keymode(char *name) {
    return km;
 }
 
-void keymode_add_binding(keymode_t *km, binding_t *binding) {
-   km->n_bindings++;
-   km->bindings = realloc(km->bindings, km->n_bindings * sizeof(binding_t*));
-   km->bindings[km->n_bindings - 1] = binding;
-}
-
-binding_t*
-keymode_get_binding(keymode_t *km, TermKeyKey *key) {
-   for (int i = km->n_bindings; i--; )
-      if (! termkey_keycmp(tk, key, &km->bindings[i]->key))
-         return km->bindings[i];
-
-   return NULL;
-}
-
 binding_t*
 binding_get_binding(binding_t *binding, TermKeyKey *key) {
    for (int i = binding->size; i--; )
@@ -154,28 +137,24 @@ binding_add_binding(binding_t *binding, binding_t *next_binding) {
 }
 
 void
-keymode_del_binding(keymode_t *km, TermKeyKey *key) {
-   for (int i=0; i < km->n_bindings; ++i)
-      if (! termkey_keycmp(tk, key, &km->bindings[i]->key)) {
-         binding_free(km->bindings[i]);
-         for (++i; i < km->n_bindings; ++i)
-            km->bindings[i - 1] = km->bindings[i];
+binding_del_binding(binding_t *binding, TermKeyKey *key) {
+   for (int i=0; i < binding->size; ++i)
+      if (! termkey_keycmp(tk, key, &binding->p.bindings[i]->key)) {
+         binding_free(binding->p.bindings[i]);
+         for (++i; i < binding->size; ++i)
+            binding->p.bindings[i - 1] = binding->p.bindings[i];
          break;
       }
 
-   km->n_bindings--;
-   km->bindings = realloc(km->bindings, km->n_bindings * sizeof(binding_t*));
+   binding->size--;
+   binding->p.bindings = realloc(binding->p.bindings, binding->size * sizeof(binding_t*));
 }
 
 #if FREE_MEMORY
 void keymode_free(keymode_t *km) {
-   for (int i=0; i < km->n_bindings; ++i) {
-      binding_free(km->bindings[i]);
-      free(km->bindings[i]);
-   }
-
+   binding_free(km->root);
+   free(km->root);
    free(km->name);
-   free(km->bindings);
 }
 #endif
 
@@ -186,12 +165,16 @@ void command_call_free(command_call_t *call) {
 }
 
 void binding_free(binding_t *binding) {
-   if (binding->type == BINDING_TYPE_COMMAND)
+   if (binding->type == BINDING_TYPE_COMMAND) {
       for (int i = binding->size; i--; )
          command_call_free(&binding->p.commands[i]);
-   else
-      for (int i = binding->size; i--; )
+   }
+   else {
+      for (int i = binding->size; i--; ) {
          binding_free(binding->p.bindings[i]);
+         free(binding->p.bindings[i]);
+      }
+   }
 
    free(binding->p.commands);
    binding->p.commands = NULL;
@@ -337,7 +320,7 @@ void handle_key(TermKeyKey *key, char *raw, int len) {
    keymode_t *keymode = context.current_mode;
 
    NEXT_KEYMODE:
-   if ((binding = keymode_get_binding(keymode, key))) {
+   if ((binding = binding_get_binding(keymode->root, key))) {
       binding_execute(binding, keymode, key);
       return;
    }

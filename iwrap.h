@@ -6,6 +6,7 @@
 #include <termios.h>
 #include <pthread.h>
 #include <termkey.h>
+
 #include "options.h"
 
 struct context_t;
@@ -42,37 +43,47 @@ typedef struct command_call_t {
    void             *arg;
 } command_call_t;
 
+
+// === Bindings ===============================================================
 #define BINDING_TYPE_COMMAND 0
 #define BINDING_TYPE_CHAINED 1
 typedef struct binding_t {
-   TermKeyKey  key;
-   uint16_t    type :  1;
-   uint16_t    size : 15;
+   uint16_t  type :  1;
+   uint16_t  size : 15;
    union {
       struct command_call_t *commands;
       struct binding_t     **bindings;
    } p;
+
+   TermKeyKey  key; // at the bottom, important!
 } binding_t;
 
-void binding_free(binding_t *);
+typedef struct binding_root_t {
+   uint16_t  type :  1;
+   uint16_t  size : 15;
+   union {
+      struct command_call_t *commands;
+      struct binding_t     **bindings;
+   } p;
+} binding_root_t;
+
+void       binding_free(binding_t *);
 binding_t* binding_get_binding(binding_t *, TermKeyKey *);
 binding_t* binding_add_binding(binding_t *, binding_t *);
+void       binding_del_binding(binding_t *, TermKeyKey*);
+// ============================================================================
+
 
 typedef struct keymode_t {
    char        *name;
    uint16_t    repeat_enabled  :  1;
-   uint16_t    n_bindings      : 15;
-   uint16_t    ignore_unmapped;
-   binding_t   **bindings;
+   uint16_t    ignore_unmapped : 15;
+   binding_t   *root;
 } keymode_t;
 
 void       keymode_init(keymode_t*, const char*);
 void       keymode_free(keymode_t*);
-void       keymode_add_binding(keymode_t*, binding_t*);
-binding_t* keymode_get_binding(keymode_t*, TermKeyKey*);
-void       keymode_del_binding(keymode_t*, TermKeyKey*);
-keymode_t* get_keymode(char *name);
-keymode_t* add_keymode(char *name);
+
 
 typedef struct context_t {
    int            program_fd;
@@ -94,6 +105,9 @@ typedef struct context_t {
 
 void context_init();
 void context_free();
+keymode_t* get_keymode(char *name);
+keymode_t* add_keymode(char *name);
+
 
 void  handle_key(TermKeyKey *key, char *raw, int len);
 void  write_to_program(char *);

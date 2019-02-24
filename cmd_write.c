@@ -21,7 +21,6 @@ void* write_parse(int argc, char **args, option *options) {
    int i;
    int size = 1;
    int repeat = 1;
-   char *strings;
 
    for (option *opt = options; opt->opt; ++opt) {
       if (opt->opt == 'r')
@@ -31,23 +30,16 @@ void* write_parse(int argc, char **args, option *options) {
          }
    }
 
-   if (argc == 1)
-      strings = strdup(args[0]);
-   else {
-      for (i = argc; i--;)
-         size += strlen(args[i]);
+   for (i = argc; i--;)
+      size += strlen(args[i]);
 
-      strings = malloc(size);
-      strcpy(strings, args[0]);
-
-      for (i = 1; i < argc; ++i)
-         strcat(strings, args[i]);
-   }
-
-   cmd_write_args *cmd_args = malloc(sizeof(*cmd_args) + strlen(strings));
+   cmd_write_args *cmd_args = malloc(sizeof(*cmd_args) + size);
    cmd_args->repeat = repeat;
-   strcpy(cmd_args->string, strings);
-   free(strings);
+
+   strcpy(cmd_args->string, args[0]);
+   for (i = 1; i < argc; ++i)
+      strcat(cmd_args->string, args[i]);
+
    return (void*) cmd_args;
 }
 

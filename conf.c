@@ -66,15 +66,22 @@ static int ignore_unmapped(int argc, char *args[]) {
       }
 
    context.current_mode->ignore_unmapped = flags;
-
    return 1;
 }
 
 static int repeat(int argc, char *args[]) {
-   if (! check_args(argc, 0))
+   if (! check_args(argc, "on|off", 0))
       return 0;
 
-   context.current_mode->repeat = 1;
+   if (streq(args[0], "on"))
+      context.current_mode->repeat_enabled = 1;
+   else if (streq(args[0], "off"))
+      context.current_mode->repeat_enabled = 0;
+   else {
+      write_error("argument has to be 'on' or 'off'");
+      return 0;
+   }
+
    return 1;
 }
 
@@ -144,7 +151,6 @@ static int bind(int argc, char *args[]) {
    }
 
    binding->type = BINDING_TYPE_COMMAND;
-
    return binding_append_commands(argc, args, binding);
 }
 

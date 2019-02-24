@@ -7,7 +7,7 @@ extern command_t command_mask;
 extern command_t command_write;
 extern command_t command_signal;
 extern command_t command_ignore;
-//extern command_t command_readline;
+extern command_t command_readline;
 
 command_t* commands[] = {
    &command_key,
@@ -16,7 +16,7 @@ command_t* commands[] = {
    &command_write,
    &command_signal,
    &command_ignore,
-   //&command_readline
+   &command_readline
 };
 
 command_t* get_command(char *name) {

@@ -10,9 +10,9 @@ parse(int argc, char *args[], option* options) {
    keymode_t *km = get_keymode(args[0]);
 
    if (! km)
-      write_error("mode not found: %s (maybe you have to pre-declare it)", args[0]);
+      return add_keymode(args[0]);
 
-   return (void*) km; // is NULL if failed
+   return (void*) km;
 }
 
 command_t command_goto = {

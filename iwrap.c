@@ -10,31 +10,46 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <signal.h>
-#include <termios.h>
 #include <stropts.h>
 
-#define      IWRAP_ERROR_SIZE 2048
-static char  iwrap_error[IWRAP_ERROR_SIZE];
+#include <termios.h>
+#include <pty.h>
 
+static char* iwrap_error = NULL;
+static int   iwrap_errror_size = 0;
+#define      IWRAP_ERROR_MAX 2048
+
+// Return the current error
 char *get_error() {
    return iwrap_error;
 }
 
+// Start a new error
 void write_error(const char *fmt, ...) {
+   char temp[IWRAP_ERROR_MAX];
+
    va_list ap;
    va_start(ap, fmt);
-   vsnprintf(iwrap_error, IWRAP_ERROR_SIZE, fmt, ap);
+   vsnprintf(temp, IWRAP_ERROR_MAX, fmt, ap);
    va_end(ap);
+
+   free(iwrap_error);
+   iwrap_error = strdup(temp);
 }
 
+// Append error message to an existing error separated by ": "
 void prepend_error(const char *fmt, ...) {
-   char temp[IWRAP_ERROR_SIZE];
+   char *old_error = iwrap_error;
+   char temp[IWRAP_ERROR_MAX];
+
    va_list ap;
    va_start(ap, fmt);
-   vsnprintf(temp, IWRAP_ERROR_SIZE, fmt, ap);
-   snprintf(temp+strlen(temp), IWRAP_ERROR_SIZE-strlen(temp)-2, ": %s", iwrap_error);
-   strncpy(iwrap_error, temp,  IWRAP_ERROR_SIZE);
+   int l = vsnprintf(temp, IWRAP_ERROR_MAX, fmt, ap);
    va_end(ap);
+
+   iwrap_error = malloc(sizeof(": ") + strlen(old_error) + l);
+   sprintf(iwrap_error, "%s: %s", temp, old_error);
+   free(old_error);
 }
 
 void write_to_program(char *s) {
@@ -55,12 +70,12 @@ void write_to_program(char *s) {
 }
 
 void context_init() {
-   context.keymodes                    = NULL;
-   context.n_keymodes                  = 0;
-   context.current_mode                = &context.global_mode;
-   context.current_binding             = NULL;
-   context.mask                        = 0;
-   context.repeat                      = 0;
+   context.keymodes        = NULL;
+   context.n_keymodes      = 0;
+   context.current_mode    = &context.global_mode;
+   context.current_binding = NULL;
+   context.mask            = 0;
+   context.repeat          = 0;
    keymode_init(&context.global_mode, "global");
 }
 
@@ -68,7 +83,7 @@ void context_init() {
 void context_free() {
    keymode_free(&context.global_mode);
 
-   for (int i=0; i < context.n_keymodes; ++i) {
+   for (int i = context.n_keymodes; i--; ) {
       keymode_free(context.keymodes[i]);
       free(context.keymodes[i]);
    }
@@ -83,14 +98,14 @@ void keymode_init(keymode_t *km, const char *name) {
    km->bindings        = NULL;
    km->n_bindings      = 0;
    km->ignore_unmapped = 0;
-   km->repeat          = 0;
+   km->repeat_enabled  = 0;
 }
 
 keymode_t* get_keymode(char *name) {
    if (streq(name, "global"))
       return &context.global_mode;
 
-   for (int i=0; i < context.n_keymodes; ++i)
+   for (int i = context.n_keymodes; i--;)
       if (streq(name, context.keymodes[i]->name))
          return context.keymodes[i];
 
@@ -115,7 +130,7 @@ void keymode_add_binding(keymode_t *km, binding_t *binding) {
 
 binding_t*
 keymode_get_binding(keymode_t *km, TermKeyKey *key) {
-   for (int i=0; i < km->n_bindings; ++i)
+   for (int i = km->n_bindings; i--; )
       if (! termkey_keycmp(tk, key, &km->bindings[i]->key))
          return km->bindings[i];
 
@@ -124,7 +139,7 @@ keymode_get_binding(keymode_t *km, TermKeyKey *key) {
 
 binding_t*
 binding_get_binding(binding_t *binding, TermKeyKey *key) {
-   for (int i=0; i < binding->size; ++i)
+   for (int i = binding->size; i--; )
       if (! termkey_keycmp(tk, key, &binding->p.bindings[i]->key))
          return binding->p.bindings[i];
 
@@ -194,7 +209,7 @@ void commands_execute(binding_t *binding, TermKeyKey *key) {
 
 static
 void commands_execute_with_repeat(binding_t *binding, keymode_t *km, TermKeyKey *key) {
-   if (km->repeat && context.repeat) {
+   if (km->repeat_enabled && context.repeat) {
       for (int r = context.repeat; r--; )
          commands_execute(binding, key);
       context.repeat = 0;
@@ -303,21 +318,16 @@ void handle_key(TermKeyKey *key, char *raw, int len) {
    if (context.current_binding != NULL) {
       if ((binding = binding_get_binding(context.current_binding, key)))
          binding_execute(binding, context.current_mode, key);
-      else {
-         if (1)          // IF IGNORE TODO
-            context.current_binding = NULL;
-         else if (0)     // WAIT TODO
-            (void)0;
-      }
-
+      else
+         context.current_binding = NULL;
       return;
    }
 
-   // Special case: If building key repetition, don't pass 0 as keybinding,
+   // Special case: If building command repetition, don't pass 0 as keybinding,
    // instead multiply our current repeat val by 10
-   if (context.repeat                    &&
-       context.current_mode->repeat      &&
-       key->type == TERMKEY_TYPE_UNICODE &&
+   if (context.current_mode->repeat_enabled &&
+       context.repeat > 0                   &&
+       key->type == TERMKEY_TYPE_UNICODE    &&
        key->code.codepoint == '0') {
       context.repeat *= 10;
       return;
@@ -338,8 +348,8 @@ void handle_key(TermKeyKey *key, char *raw, int len) {
    }
    // =========================================================================
 
-   // We're building a repetition number ======================================
-   if (context.current_mode->repeat) {
+   // We have the chance to start a command repetition ========================
+   if (context.current_mode->repeat_enabled) {
       if (key->type == TERMKEY_TYPE_UNICODE &&
           key->code.codepoint >= '1'        &&
           key->code.codepoint <= '9')
@@ -348,10 +358,10 @@ void handle_key(TermKeyKey *key, char *raw, int len) {
          return;
       }
       else
-         context.repeat = 0;
+         context.repeat = 0; // no
    }
 
-   // Ignore? =================================================================
+   // Ignore unhandeled key ===================================================
    if (context.current_mode->ignore_unmapped & TERMKEY_TYPE_TO_FLAG(key->type)) {
       // Modified unicode is considered as a keysym
       if (key->type != TERMKEY_TYPE_UNICODE || key->modifiers == 0) {
@@ -427,35 +437,35 @@ void stop_program_output() {
    pthread_join(context.redir_thread, NULL);
 }
 
-void get_cursor(int fd, int *x, int *y) {
+void get_cursor(int fd, int *y, int *x) {
+   // Send "\033[6n"
+   // Expect ^[[8;14R
    fd = STDIN_FILENO;
    *x = *y = 0;
    struct termios tios, old_tios;
-   char cmd[] = { 033, '[', '6', 'n' }; // "\033[6n"
-   char c; // expect ^[[8;14R
+   char cmd[] = { 033, '[', '6', 'n' };
+   char c;
+
    if (tcgetattr(fd, &tios) == 0) {
       old_tios = tios;
       cfmakeraw(&tios);
       tcsetattr(fd, TCSANOW, &tios);
 
       write(fd, cmd, sizeof(cmd));
-      read(fd, cmd, 3); // ESC, [, <n>
+      read(fd, cmd, 2); // ESC, [
 
-      *x = cmd[2] - '0';
       while (read(fd, &c, 1) && c != ';')
-         *x = (*x * 10) + c - '0';
-
-      read(fd, &c, 1);
-      *y = c - '0';
-      while (read(fd, &c, 1) && c != 'R')
          *y = (*y * 10) + c - '0';
+
+      while (read(fd, &c, 1) && c != 'R')
+         *x = (*x * 10) + c - '0';
 
       tcsetattr(fd, TCSANOW, &old_tios);
    }
 }
 
-void set_cursor(int fd, int x, int y) {
-   dprintf(fd, "\033[%d;%dH", x, y);
+void set_cursor(int fd, int y, int x) {
+   dprintf(fd, "\033[%d;%dH", y, x);
 }
 
 void set_input_mode() {
@@ -468,13 +478,3 @@ void set_input_mode() {
    tios.c_cc[VTIME] = 0;
    tcsetattr(STDIN_FILENO, TCSANOW, &tios);
 }
-
-/*
-void get_winsize(int fd, int *x, int *y) {
-   struct winsize wsz;
-   if (ioctl(fd, TIOCGWINSZ, &wsz) != -1) {
-      *x = wsz.ws_row;
-      *y = wsz.ws_col;
-   }
-}
-*/

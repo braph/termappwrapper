@@ -31,7 +31,8 @@
 #define GETOPT_OPTS "+c:C:m:b:k:hvu:"
 
 /* TODO: repeat-max
- * TODO: instant-leave mode? */
+ * TODO: instant-leave mode? 
+ * TODO: escape-char */
 
 int   help(char *);
 void  cleanup();
@@ -39,6 +40,7 @@ void  update_pty_size(int);
 void  sighandler(int);
 int   forkapp(char **, int*, pid_t*);
 char* alias(const char*, ...);
+void  tmux_fix();
 
 char *alias_buf = NULL;
 
@@ -77,12 +79,11 @@ int main(int argc, char *argv[]) {
          if (read_conf_string(alias("unbind %s", optarg)) < 0)
             errx(1, "Option -u '%s': %s", optarg, get_error());
       case 'k':
-         if ((arg2 = argv[++optind]) == NULL)
+         if ((arg2 = argv[optind++]) == NULL)
             errx(1, "Option -k '%s': Missing argument", optarg);
          if (read_conf_string(alias("bind %s key %s", optarg, arg2)) < 0)
             errx(1, "Option -k '%s' '%s': %s", optarg, arg2, get_error());
       case 'v':
-         mode = "vi";
          if (read_conf_string(VI_CONF) < 0)
             errx(1, "%s", get_error());
       case '?':
@@ -94,26 +95,17 @@ int main(int argc, char *argv[]) {
    if (optind == argc)
       errx(1, "Missing command");
 
-   if (! (context.current_mode = get_keymode(mode)))
-      errx(1, "Option -m: unknown mode: %s", mode);
-
    if (forkapp(&argv[optind], &context.program_fd, &context.program_pid) < 0)
       err(1, "Could not start process");
 
    if (! start_program_output())
       err(1, "Starting thread failed");
 
-   if (getenv("TMUX") && fork() == 0) {
-      close(0);
-      close(1);
-      close(2);
-      return execlp("tmux", "tmux", "setw", "escape-time", "50", NULL);
-   }
-
    if (tcgetattr(STDIN_FILENO, &context.tios_restore) != 0)
       err(1, "TODO");
 
    set_input_mode();
+   tmux_fix();
 
    atexit(cleanup);
    signal(SIGINT,   sighandler);
@@ -246,6 +238,15 @@ int forkapp(char **argv, int *ptyfd, pid_t *pid) {
    }
 
    return 1;
+}
+
+void tmux_fix() {
+   if (getenv("TMUX") && fork() == 0) {
+      close(0);
+      close(1);
+      close(2);
+      execlp("tmux", "tmux", "setw", "escape-time", "50", NULL);
+   }
 }
 
 void update_pty_size(int _) {

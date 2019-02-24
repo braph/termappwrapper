@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 //#define COMMANDS_SIZE (sizeof(commands)/sizeof(commands[0]))
-#define COMMANDS_SIZE 6 //(sizeof(commands)/sizeof(commands[0]))
+#define COMMANDS_SIZE 7 //(sizeof(commands)/sizeof(commands[0]))
 
 extern command_t* commands[];
 

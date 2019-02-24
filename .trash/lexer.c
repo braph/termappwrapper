@@ -101,13 +101,7 @@ static int lex_getc() {
          return EOF;
    }
 
-   if (lex_buf[lex_buf_pos] == '\n') {
-      lex_line++;
-      lex_line_pos = 1;
-   } else {
-      lex_line_pos++;
-   }
-
+   lex_line_pos++;
    return lex_buf[lex_buf_pos--];
 }
 
@@ -212,7 +206,6 @@ int lex() {
    while ((c = lex_getc()) != EOF) {
       switch (c) {
          case '#':   consume_comment();
-                     break;
          case '"':   return read_double_quote();
          case '\'':  return read_single_quote();
          case ';':

@@ -27,46 +27,46 @@ static struct {
   { "backspace", TERMKEY_SYM_BACKSPACE },
   { "begin",     TERMKEY_SYM_BEGIN     },
   { "beg",       TERMKEY_SYM_BEGIN     },
-//{ "btab",      TERMKEY_SYM_TAB, TERMKEY_KEYMOD_SHIFT }
-  { "cancel",    TERMKEY_SYM_CANCEL    },
-  { "clear",     TERMKEY_SYM_CLEAR     },
-  { "close",     TERMKEY_SYM_CLOSE     },
-  { "command",   TERMKEY_SYM_COMMAND   },
-  { "copy",      TERMKEY_SYM_COPY      },
+//{ "btab",      TERMKEY_SYM_TAB,         TERMKEY_KEYMOD_SHIFT }
+//{ "cancel",    TERMKEY_SYM_CANCEL    },
+//{ "clear",     TERMKEY_SYM_CLEAR     },
+//{ "close",     TERMKEY_SYM_CLOSE     },
+//{ "command",   TERMKEY_SYM_COMMAND   },
+//{ "copy",      TERMKEY_SYM_COPY      },
   { "dc",        TERMKEY_SYM_DELETE    },
   { "down",      TERMKEY_SYM_DOWN      },
   { "end",       TERMKEY_SYM_END       },
   { "enter",     TERMKEY_SYM_ENTER     },
-  { "exit",      TERMKEY_SYM_EXIT      },
-  { "find",      TERMKEY_SYM_FIND      },
-  { "help",      TERMKEY_SYM_HELP      },
+//{ "exit",      TERMKEY_SYM_EXIT      },
+//{ "find",      TERMKEY_SYM_FIND      },
+//{ "help",      TERMKEY_SYM_HELP      },
   { "home",      TERMKEY_SYM_HOME      },
   { "ic",        TERMKEY_SYM_INSERT    },
   { "left",      TERMKEY_SYM_LEFT      },
-  { "mark",      TERMKEY_SYM_MARK      },
-  { "message",   TERMKEY_SYM_MESSAGE   },
-  { "mouse",     TERMKEY_SYM_NONE      },
-  { "move",      TERMKEY_SYM_MOVE      },
+//{ "mark",      TERMKEY_SYM_MARK      },
+//{ "message",   TERMKEY_SYM_MESSAGE   },
+//{ "mouse",     TERMKEY_SYM_NONE      },
+//{ "move",      TERMKEY_SYM_MOVE      },
   { "next",      TERMKEY_SYM_PAGEDOWN  },
   { "npage",     TERMKEY_SYM_PAGEDOWN  },
-  { "open",      TERMKEY_SYM_OPEN      },
-  { "options",   TERMKEY_SYM_OPTIONS   },
+//{ "open",      TERMKEY_SYM_OPEN      },
+//{ "options",   TERMKEY_SYM_OPTIONS   },
   { "ppage",     TERMKEY_SYM_PAGEUP    },
   { "previous",  TERMKEY_SYM_PAGEUP    },
   { "print",     TERMKEY_SYM_PRINT     },
-  { "redo",      TERMKEY_SYM_REDO      },
-  { "reference", TERMKEY_SYM_REFERENCE },
-  { "refresh",   TERMKEY_SYM_REFRESH   },
-  { "replace",   TERMKEY_SYM_REPLACE   },
-  { "restart",   TERMKEY_SYM_RESTART   },
-  { "resume",    TERMKEY_SYM_RESUME    },
+//{ "redo",      TERMKEY_SYM_REDO      },
+//{ "reference", TERMKEY_SYM_REFERENCE },
+//{ "refresh",   TERMKEY_SYM_REFRESH   },
+//{ "replace",   TERMKEY_SYM_REPLACE   },
+//{ "restart",   TERMKEY_SYM_RESTART   },
+//{ "resume",    TERMKEY_SYM_RESUME    },
   { "right",     TERMKEY_SYM_RIGHT     },
-  { "save",      TERMKEY_SYM_SAVE      },
-  { "select",    TERMKEY_SYM_SELECT    },
-  { "suspend",   TERMKEY_SYM_SUSPEND   },
-  { "undo",      TERMKEY_SYM_UNDO      },
-  { "up",        TERMKEY_SYM_UP        },
-  { NULL }
+//{ "save",      TERMKEY_SYM_SAVE      },
+//{ "select",    TERMKEY_SYM_SELECT    },
+//{ "suspend",   TERMKEY_SYM_SUSPEND   },
+//{ "undo",      TERMKEY_SYM_UNDO      },
+  { "up",        TERMKEY_SYM_UP        }
+//{ NULL }
 };
 
 // Stolen and adapted from libtermkey/driver-ti.c 
@@ -98,18 +98,18 @@ int funcname2keysym(const char *funcname, TermKeySym *symp)
 
 static
 char* get_sequence_for_sym(lookup_t *table, int size, TermKeySym sym) {
-   for (int i=0; i < size; ++i)
-      if (table[i].sym == sym)
-         return table[i].sequence;
+   while (size--)
+      if (table[size].sym == sym)
+         return table[size].sequence;
    
    return NULL;
 }
  
 static 
-void addKeySym(TermKeySym sym, char *sequence) {
-   normal_lookup[normal_lookup_size].sym      = sym;
-   normal_lookup[normal_lookup_size].sequence = sequence;
-   ++normal_lookup_size;
+void table_add_key_sym(lookup_t *table, int *size, TermKeySym sym, char *sequence) {
+   table[*size].sym      = sym;
+   table[*size].sequence = sequence;
+   ++(*size);
 }
 
 // Stolen and adapted from libtermkey/driver-ti.c 
@@ -156,9 +156,9 @@ int load_terminfo()
       }
    }
 
-   addKeySym(TERMKEY_SYM_ENTER,     "\x0D");
-   addKeySym(TERMKEY_SYM_DEL,       "\x7F");
-   addKeySym(TERMKEY_SYM_ESCAPE,    "\x1B");
+   table_add_key_sym(normal_lookup, &normal_lookup_size, TERMKEY_SYM_ENTER,  "\x0D");
+   table_add_key_sym(normal_lookup, &normal_lookup_size, TERMKEY_SYM_DEL,    "\x7F");
+   table_add_key_sym(normal_lookup, &normal_lookup_size, TERMKEY_SYM_ESCAPE, "\x1B");
    // CTRL+Space
 
    normal_lookup = realloc(normal_lookup, normal_lookup_size * sizeof(lookup_t));
@@ -201,17 +201,15 @@ int parse_key(char *def, TermKeyKey *key) {
    if (last_char != NULL && *last_char == 0)
       return 1;
 
-   // TODO...
-
    // Caret notation ^K/^k
-   if (def[0] == '^') {
+   if (def[0] == '^' && def[1] != 0 && def[2] == 0) {
       // Try ^K
       last_char = termkey_strpkey(tk, def, key, TERMKEY_FORMAT_CARETCTRL);
       if (last_char != NULL && *last_char == 0)
          return 1;
 
       // Try ^k
-      if (def[1] >= 'a' && def[1] <= 'z' && def[2] == 0) {
+      if (def[1] >= 'a' && def[1] <= 'z') {
          char def2[3] = { '^', 0, 0 };
          def2[1] = toupper(def[1]);
          last_char = termkey_strpkey(tk, def2, key, TERMKEY_FORMAT_CARETCTRL);
@@ -225,8 +223,8 @@ int parse_key(char *def, TermKeyKey *key) {
 }
 
 char *format_key(TermKeyKey *key) {
-   static char buf[42];
-   termkey_strfkey(tk, buf, 42, key, 0);
+   static char buf[32];
+   termkey_strfkey(tk, buf, sizeof(buf), key, 0);
    return buf;
 }
 

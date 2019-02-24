@@ -3,7 +3,7 @@ LIBS 		  = -lutil -ltermkey -lcurses -lpthread -lreadline
 PREFIX     = /usr
 DEBUG 	  = 0
 FREE  	  = 0
-CC_FLAGS   = -Wall #-O2
+CC_FLAGS   = -Wall -O2
 
 ifeq ($(DEBUG), 1)
 	FREE = 1
@@ -12,19 +12,19 @@ endif
 
 CC_FLAGS += -DFREE_MEMORY=$(FREE) -DDEBUG=$(DEBUG)
 
-CMDS = goto mask write key signal ignore #readline
+CMDS = goto mask write key signal ignore readline
 CMDS := $(addprefix cmd_, $(CMDS))
 
 OBJS  = termkeystuff bind_parse iwrap conf lexer common options commands $(CMDS)
 OBJS := $(addsuffix .o, $(OBJS))
 
 build: $(OBJS)
-	gcc $(CC_FLAGS) $(LIBS) objs/*.o main.c -o $(PROGNAME)
-	#strip $(PROGNAME)
+	$(CC) $(CC_FLAGS) $(LIBS) objs/*.o main.c -o $(PROGNAME)
+	strip $(PROGNAME)
 
 %.o:
 	@mkdir -p objs
-	gcc $(CC_FLAGS) $(LIBS) -c $*.c -o objs/$*.o
+	$(CC) $(CC_FLAGS) $(LIBS) -c $*.c -o objs/$*.o
 
 install:
 	install -m 0755 $(PROGNAME) $(PREFIX)/bin/$(PROGNAME)

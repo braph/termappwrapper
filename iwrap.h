@@ -60,9 +60,9 @@ binding_t* binding_add_binding(binding_t *, binding_t *);
 
 typedef struct keymode_t {
    char        *name;
-   uint16_t    repeat          :  1;
-   uint16_t    ignore_unmapped :  1;
-   uint16_t    n_bindings      : 14;
+   uint16_t    repeat_enabled  :  1;
+   uint16_t    n_bindings      : 15;
+   uint16_t    ignore_unmapped;
    binding_t   **bindings;
 } keymode_t;
 
@@ -106,6 +106,5 @@ void  stop_program_output();
 void  set_input_mode();
 void  get_cursor(int fd, int *x, int *y);
 void  set_cursor(int fd, int x, int y);
-void  get_winsize(int fd, int *x, int *y);
 
 #endif

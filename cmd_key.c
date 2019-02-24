@@ -35,27 +35,22 @@ char *key_parse_get_code(char *keydef) {
 static
 void* key_parse(int argc, char *args[], option *options) {
    char         *seq;
-   char         *sequences = NULL;
-   int           repeat = 1;
-   cmd_key_args *cmd_args = NULL;
+   int           repeat    = 1;
+   cmd_key_args *cmd_args  = NULL;
+   char         *sequences = malloc(argc * 16);
+   sequences[0] = 0;
 
    for (option *opt = options; opt->opt; ++opt) {
       if (opt->opt == 'r')
          if ((repeat = atoi(opt->arg)) <= 0) {
             write_error("invalid repeat value: %s", opt->arg);
-            return NULL;
+            goto END_OR_ERROR;
          }
    }
 
-   if (! (seq = key_parse_get_code(args[0])))
-      return NULL;
-   sequences = strdup(seq);
-
-   for (int i = 1; i < argc; ++i) {
+   for (int i = 0; i < argc; ++i) {
       if (! (seq = key_parse_get_code(args[i])))
          goto END_OR_ERROR;
-
-      sequences = realloc(sequences, strlen(sequences) + strlen(seq) + 1);
       strcat(sequences, seq);
    }
 

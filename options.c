@@ -7,7 +7,8 @@
 /*
  * Parse options, return the index of first non option or -1 on failure
  */
-int parse_opts(int argc, char *args[], const char *optstr, option **opts) {
+static
+int parse_options(int argc, char *args[], const char *optstr, option **opts) {
    int    i;
    char  *c;
    char  *oc;
@@ -69,8 +70,8 @@ ERROR:
 /*
  * Parse options, modify argc and argv, return 1 on success, 0 on failure
  */
-int parse_opts2(int *argc, char **args[], const char *optstr, option **opts) {
-   int optind = parse_opts(*argc, *args, optstr, opts);
+int get_options(int *argc, char **args[], const char *optstr, option **opts) {
+   int optind = parse_options(*argc, *args, optstr, opts);
    if (optind == -1)
       return 0;
 

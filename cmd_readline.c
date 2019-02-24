@@ -55,8 +55,7 @@ void refresh_window(int fd) {
    }
 }
 
-static
-void readline_call(command_call_t *cmd, TermKeyKey *key) {
+static COMMAND_CALL_FUNC(call) {
    int old_x, old_y, max_x = 0, max_y = 0, x, y;
    char *line;
    cmd_readline_args *args = cmd->arg;
@@ -107,15 +106,14 @@ void readline_call(command_call_t *cmd, TermKeyKey *key) {
       refresh_window(context.program_fd);
 
    if (line && strlen(line) > 0) {
-      write_to_program(line);
+      writes_to_program(line);
       if (! args->no_newline)
-         write_to_program("\r");
+         write(context.program_fd, "\r", 1);
       free(line);
    }
 }
 
-static
-void* cmd_readline_parse(int argc, char *args[], option *options) {
+static COMMAND_PARSE_FUNC(parse) {
    cmd_readline_args *cmd_args = calloc(1, sizeof(*cmd_args));
    cmd_args->x = 1;
    cmd_args->y = -1;
@@ -174,8 +172,8 @@ command_t command_readline = {
       {'R', NULL,     "Do not refresh the window"},
       {0,0,0}
    },
-   .parse = &cmd_readline_parse,
-   .call  = &readline_call,
+   .parse = &parse,
+   .call  = &call,
    .free  = &cmd_readline_free
 };
 

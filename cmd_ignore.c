@@ -1,7 +1,6 @@
 #include "iwrap.h"
 
-static
-void noop(command_call_t *cmd, TermKeyKey *key) {
+static COMMAND_CALL_FUNC(call) {
    (void) 0;
 }
 
@@ -11,6 +10,6 @@ command_t command_ignore = {
    .args  = NULL,
    .opts  = NULL,
    .parse = NULL,
-   .call  = &noop,
+   .call  = &call,
    .free  = NULL
 };

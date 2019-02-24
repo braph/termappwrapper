@@ -22,6 +22,7 @@ char* get_error();
 void  write_error(const char *fmt, ...);
 void  prepend_error(const char *fmt, ...);
 
+// === Command stuff ==========================================================
 typedef struct command_opt_t {
    const char  opt;
    const char *meta;
@@ -43,6 +44,9 @@ typedef struct command_call_t {
    void             *arg;
 } command_call_t;
 
+#define COMMAND_CALL_FUNC(NAME)  void  NAME (struct command_call_t* cmd, TermKeyKey *key)
+#define COMMAND_PARSE_FUNC(NAME) void* NAME (int argc, char *args[], option *options)
+// ============================================================================
 
 // === Bindings ===============================================================
 #define BINDING_TYPE_COMMAND 0
@@ -92,8 +96,10 @@ typedef struct context_t {
    uint32_t       mask        :  1;
    uint32_t       stop_output :  1;
    uint32_t       n_keymodes  : 12;
-   uint32_t       repeat      : 18;
+   uint32_t       repeat      : 12;
+   uint32_t       input_len   :  6;
 
+   char           *input_buffer;
    keymode_t      global_mode;
    keymode_t      **keymodes;
    keymode_t      *current_mode;
@@ -108,11 +114,13 @@ void context_free();
 keymode_t* get_keymode(char *name);
 keymode_t* add_keymode(char *name);
 
+#define check_args_va(argc, ...) \
+   check_args(argc, (const char*[]) { __VA_ARGS__, 0 } )
 
-void  handle_key(TermKeyKey *key, char *raw, int len);
-void  write_to_program(char *);
-int   check_args(int argc, ...);
-int   check_args_new(int argc, const char *args[]); 
+void  handle_key(TermKeyKey*);
+void  writes_to_program(char *);
+void  writeb_to_program(char *, ssize_t);
+int   check_args(int argc, const char *args[]); 
 char* args_get_arg(int *, char***, const char*);
 int   start_program_output();
 void  stop_program_output();
@@ -120,5 +128,7 @@ void  stop_program_output();
 void  set_input_mode();
 void  get_cursor(int fd, int *x, int *y);
 void  set_cursor(int fd, int x, int y);
+void  update_pty_size(int);
+int   forkapp(char **, int *, pid_t *);
 
 #endif

@@ -4,14 +4,11 @@
 #include "iwrap.h"
 #include <stdio.h>
 
-//#define COMMANDS_SIZE (sizeof(commands)/sizeof(commands[0]))
-#define COMMANDS_SIZE 7
-
 extern command_t* commands[];
+extern int        commands_size;
 
 command_t* get_command(char *);
-void*      command_create_arg(command_t *cmd, int argc, char **args);
-
+void*      command_create_arg(command_t *, int, char **);
 void       fprint_command_usage(FILE *, command_t*);
 
 #endif

@@ -1,16 +1,15 @@
 #include "iwrap.h"
 
-static void
-mask_call(command_call_t *cmd, TermKeyKey *key) {
+static COMMAND_CALL_FUNC(call) {
    context.mask = 1;
 }
 
 command_t command_mask = {
    .name  = "mask",
-   .desc  = "Mask the next input character (do not interprete it as a binding)",
+   .desc  = "Do not interprete the next keypress",
    .args  = NULL,
    .opts  = NULL,
    .parse = NULL,
-   .call  = &mask_call,
+   .call  = &call,
    .free  = NULL
 };

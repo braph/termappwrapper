@@ -1,12 +1,10 @@
 #include "iwrap.h"
 
-static void
-call(command_call_t *cmd, TermKeyKey *key) {
+static COMMAND_CALL_FUNC(call) {
    context.current_mode = (keymode_t*) cmd->arg;
 }
 
-static void*
-parse(int argc, char *args[], option* options) {
+static COMMAND_PARSE_FUNC(parse) {
    keymode_t *km = get_keymode(args[0]);
 
    if (! km)

@@ -5,6 +5,7 @@
 #include "termkeystuff.h"
 
 /* parse single command, append to binding */
+static
 int binding_append_command(binding_t *binding, int argc, char *args[])
 {
    command_t  *cmd = NULL;

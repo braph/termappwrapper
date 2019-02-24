@@ -13,41 +13,36 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/wait.h>
-
-#include <pty.h>
 #include <termios.h>
-//#include <term.h>
-//#include <ncurses.h>
 
 #define USAGE \
 "Usage: %s [OPTIONS] PROGRAM [ARGUMENTS...]\n\n" \
 "OPTIONS\n\n"                                    \
-" -c file\t"                  "Read config file\n"             \
-" -C string\t"                "Read config string\n"           \
-" -m mode\t"                  "Start in mode\n"                \
-" -b key cmd\t"               "Alias for 'bind key cmd'\n"     \
-" -k <key in> <key out>"      "Alias for 'bind key_in key key_out'\n" \
-" -v\t\t"                     "Load vi config\n"
+" -c file\t"                "Read config file\n"             \
+" -C string\t"              "Read config string\n"           \
+" -m mode\t"                "Start in mode\n"                \
+" -b key cmd\t"             "Alias for 'bind key cmd'\n"     \
+" -k <key in> <key out>"    "Alias for 'bind key_in key key_out'\n" \
+" -v\t\t"                   "Load vi config\n"
 #define GETOPT_OPTS "+c:C:m:b:k:hvu:"
 
 /* TODO: repeat-max
  * TODO: instant-leave mode? 
- * TODO: escape-char */
+ * TODO: escape-char, system-conf-dir
+ * search for configuration files per application basis */
 
-int   help(char *);
-void  cleanup();
-void  update_pty_size(int);
-void  sighandler(int);
-int   forkapp(char **, int*, pid_t*);
-char* alias(const char*, ...);
-void  tmux_fix();
+int    help(char *);
+void   cleanup();
+void   sighandler(int);
+char*  alias(const char*, ...);
+void   tmux_fix();
+int    load_conf(char *); // cmd_load.c
 
 char *alias_buf = NULL;
 
 int main(int argc, char *argv[]) {
-   int         c;
-   char        *mode   = "global";
-   const char  *arg2   = NULL;
+   int  c;
+   char *arg2 = NULL;
 
    context_init();
 
@@ -58,38 +53,39 @@ int main(int argc, char *argv[]) {
       err(1, "Initializing termkey failed");
 
    while ((c = getopt(argc, argv, GETOPT_OPTS)) != -1)
+      #define ERR(FMT, ...) errx(1, "Option -%c" FMT, c, __VA_ARGS__)
       #define case break; case
       switch (c) {
       case 'h':
          return help(argv[0]);
       case 'm':
-         mode = optarg;
-         if (! (context.current_mode = get_keymode(mode)))
-            errx(1, "Option -m: unknown mode: %s", mode);
+         if (! (context.current_mode = get_keymode(optarg)))
+            ERR(": unknown mode: %s", optarg);
       case 'c':
-         if (read_conf_file(optarg) < 0)
-            errx(1, "Option -c '%s': %s", optarg, get_error());
+         if (! load_conf(optarg))
+            ERR(" '%s': %s", optarg, get_error());
       case 'C': 
-         if (read_conf_string(optarg) < 0)
-            errx(1, "Option -C '%s': %s", optarg, get_error());
+         if (! read_conf_string(optarg))
+            ERR(" '%s': %s", optarg, get_error());
       case 'b':
-         if (read_conf_string(alias("bind %s", optarg)) < 0)
-            errx(1, "Option -b '%s': %s", optarg, get_error());
+         if (! read_conf_string(alias("bind %s", optarg)))
+            ERR(" '%s': %s", optarg, get_error());
       case 'u':
-         if (read_conf_string(alias("unbind %s", optarg)) < 0)
-            errx(1, "Option -u '%s': %s", optarg, get_error());
+         if (! read_conf_string(alias("unbind %s", optarg)))
+            ERR(" '%s': %s", optarg, get_error());
       case 'k':
          if ((arg2 = argv[optind++]) == NULL)
-            errx(1, "Option -k '%s': Missing argument", optarg);
-         if (read_conf_string(alias("bind %s key %s", optarg, arg2)) < 0)
-            errx(1, "Option -k '%s' '%s': %s", optarg, arg2, get_error());
+            ERR(" '%s': missing argument", optarg);
+         if (! read_conf_string(alias("bind %s key %s", optarg, arg2)))
+            ERR(" '%s' '%s': %s", optarg, arg2, get_error());
       case 'v':
-         if (read_conf_string(VI_CONF) < 0)
-            errx(1, "%s", get_error());
+         if (! read_conf_string(VI_CONF))
+            ERR(": %s", get_error());
       case '?':
          return 1;
       }
       #undef case
+      #undef ERR
    free(alias_buf);
 
    if (optind == argc)
@@ -102,7 +98,7 @@ int main(int argc, char *argv[]) {
       err(1, "Starting thread failed");
 
    if (tcgetattr(STDIN_FILENO, &context.tios_restore) != 0)
-      err(1, "TODO");
+      err(1, "tcgetattr()");
 
    set_input_mode();
    tmux_fix();
@@ -113,10 +109,10 @@ int main(int argc, char *argv[]) {
    signal(SIGWINCH, update_pty_size);
    setbuf(stdin, NULL);
 
-   #define   bufsz 16
-   char      buf[bufsz];
-   int       bufi;
-   #define   escdelay_ms 10
+   #define bufsz 16
+   context.input_buffer = malloc(bufsz);
+   context.input_len = 0;
+   #define ESCDELAY_MS 10
 
    struct pollfd fds[2] = {
       { .fd = STDIN_FILENO,       .events = POLLIN },
@@ -130,7 +126,6 @@ int main(int argc, char *argv[]) {
       .modifiers = 0
    };
 
-   bufi = 0;
    for (;;) {
       for (;;) {
          poll(fds, 2, -1);
@@ -146,14 +141,14 @@ int main(int argc, char *argv[]) {
       }
 
       c = getchar();
-      buf[bufi++] = c;
+      context.input_buffer[context.input_len++] = c;
 
       if (c == 033) {
-         if (poll(fds, 1, escdelay_ms) > 0 && fds[0].revents & POLLIN)
+         if (poll(fds, 1, ESCDELAY_MS) > 0 && fds[0].revents & POLLIN)
             goto NON_ESCAPE;
          else {
-            handle_key(&escape, buf, bufi);
-            bufi = 0;
+            handle_key(&escape);
+            context.input_len = 0;
             continue;
          }
       }
@@ -161,8 +156,8 @@ int main(int argc, char *argv[]) {
       NON_ESCAPE:
       termkey_push_bytes(tk, (char*) &c, 1);
       if (termkey_getkey(tk, &key) == TERMKEY_RES_KEY) {
-         handle_key(&key, buf, bufi);
-         bufi = 0;
+         handle_key(&key);
+         context.input_len = 0;
       }
    }
 
@@ -173,7 +168,7 @@ int help(char *prog) {
    printf(USAGE"\n", prog);
 
    printf("Available commands:\n");
-   for (int i = 0; i < COMMANDS_SIZE; ++i) {
+   for (int i = 0; i < commands_size; ++i) {
       printf("  ");
       fprint_command_usage(stdout, commands[i]);
       printf("\n");
@@ -186,12 +181,8 @@ char* alias(const char *template, ...) {
    va_list ap;
    int sz = strlen(template);
 
-   int nargs = 0;
-   for (const char *s = strchr(template, '%'); s; s = strchr(s + 1, '%'))
-      ++nargs;
-
    va_start(ap, template);
-   for (int i=0; i < nargs; ++i)
+   for (const char *s = strchr(template, '%'); s; s = strchr(s + 1, '%'))
       sz += strlen(va_arg(ap, char*));
    va_end(ap);
 
@@ -221,25 +212,6 @@ void sighandler(int sig) {
    exit(0);
 }
 
-int forkapp(char **argv, int *ptyfd, pid_t *pid) {
-   struct winsize wsz;
-   struct termios tios;
-
-   tcgetattr(STDIN_FILENO, &tios);
-   ioctl(STDIN_FILENO, TIOCGWINSZ, &wsz);
-      
-   *pid = forkpty(ptyfd, NULL, &tios, &wsz);
-
-   if (*pid < 0)
-      return -1;
-   else if (*pid == 0) {
-      execvp(argv[0], &argv[0]);
-      return -1;
-   }
-
-   return 1;
-}
-
 void tmux_fix() {
    if (getenv("TMUX") && fork() == 0) {
       close(0);
@@ -249,8 +221,3 @@ void tmux_fix() {
    }
 }
 
-void update_pty_size(int _) {
-   struct winsize ws;
-   if (ioctl(STDIN_FILENO, TIOCGWINSZ, &ws) != -1)
-      ioctl(context.program_fd, TIOCSWINSZ, &ws);
-}

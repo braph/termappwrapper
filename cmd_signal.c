@@ -43,15 +43,12 @@ char* signal2name(int number) {
 }
 */
 
-static
-void signal_call(command_call_t *cmd, TermKeyKey *key) {
+static COMMAND_CALL_FUNC(call) {
    int sig = (int) (uintptr_t) cmd->arg;
    kill(context.program_pid, sig);
 }
 
-static
-void* signal_parse(int argc, char *args[], option *options)
-{
+static COMMAND_PARSE_FUNC(parse) {
    int number;
 
    if (! (number = name2signal(args[0])))
@@ -65,7 +62,7 @@ command_t command_signal = {
    .desc  = "Send signal to program",
    .args  = (const char *[]) { "SIGNAL", 0 },
    .opts  = NULL,
-   .parse = &signal_parse,
-   .call  = &signal_call,
+   .parse = &parse,
+   .call  = &call,
    .free  = NULL
 };

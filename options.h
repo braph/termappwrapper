@@ -6,7 +6,7 @@ typedef struct option {
    char *arg;
 } option;
 
-int parse_opts(int argc, char *args[], const char *optstr, option **opts);
-int parse_opts2(int *argc, char **args[], const char *optstr, option **opts);
+//int parse_options(int argc, char *args[], const char *optstr, option **opts);
+int get_options(int *argc, char **args[], const char *optstr, option **opts);
 
 #endif

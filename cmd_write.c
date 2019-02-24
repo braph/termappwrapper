@@ -8,16 +8,14 @@ typedef struct cmd_write_args {
    char  string[1];
 } cmd_write_args;
 
-static
-void write_call(command_call_t *cmd, TermKeyKey *key) {
+static COMMAND_CALL_FUNC(call) {
    cmd_write_args *arg = (cmd_write_args*) cmd->arg;
 
    for (int i = arg->repeat; i--; )
-      write_to_program(arg->string);
+      writes_to_program(arg->string);
 }
 
-static
-void* write_parse(int argc, char **args, option *options) {
+static COMMAND_PARSE_FUNC(parse) {
    int i;
    int size = 1;
    int repeat = 1;
@@ -48,7 +46,7 @@ command_t command_write = {
    .desc  = "Write string to program",
    .args  = (const char*[]) { "+STRING", 0 },
    .opts  = (const command_opt_t[]) {{ 'r', "NUM", "repeat" }, {0,0,0}},
-   .parse = &write_parse,
-   .call  = &write_call,
+   .parse = &parse,
+   .call  = &call,
    .free  = &free
 };

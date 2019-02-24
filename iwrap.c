@@ -12,7 +12,6 @@
 #include <unistd.h>
 
 static char* iwrap_error = NULL;
-static int   iwrap_errror_size = 0;
 #define      IWRAP_ERROR_MAX 2048
 
 // Return the current error
@@ -48,21 +47,24 @@ void prepend_error(const char *fmt, ...) {
    free(old_error);
 }
 
-void write_to_program(char *s) {
-   ssize_t	n, slen;
+void writeb_to_program(char *s, ssize_t len) {
+   ssize_t n;
 
-   slen = strlen(s);
    for (int i = 5; i--; ) {
-      n = write(context.program_fd, s, slen);
+      n = write(context.program_fd, s, len);
       if (n >= 0) {
          s += n;
-         slen -= n;
-         if (slen == 0)
+         len -= n;
+         if (len == 0)
             break;
       } else if (n == -1 && errno != EAGAIN)
          break;
       usleep(100);
    }
+}
+
+void writes_to_program(char *s) {
+   writeb_to_program(s, strlen(s));
 }
 
 void context_init() {
@@ -213,7 +215,7 @@ void binding_execute(binding_t *binding, keymode_t *km, TermKeyKey *key) {
    }
 }
 
-int check_args_new(int argc, const char *args[]) {
+int check_args(int argc, const char *args[]) {
    for (const char **arg = args; *arg; ++arg) {
       if (**arg == '+') {
          if (! argc) {
@@ -248,47 +250,7 @@ char* args_get_arg(int *argc, char ***argv, const char *name) {
    return ret;
 }
 
-int check_args(int argc, ...) {
-   va_list ap;
-   char   *arg;
-   va_start(ap, argc);
-   #define return va_end(ap); return
-
-   for (;;) {
-      arg = va_arg(ap, char *);
-
-      if (arg == 0) {
-         if (argc) {
-            write_error("spare arguments");
-            return 0;
-         }
-
-         break; // OK
-      }
-      else if (*arg == '+') {
-         if (! argc) {
-            write_error("missing argument: <%s>", &arg[1]);
-            return 0;
-         }
-
-         break; // OK
-      }
-      else if (*arg == '*') {
-         break; // OK
-      }
-      else {
-         if (! argc--) {
-            write_error("missing argument: <%s>", arg);
-            return 0;
-         }
-      }
-   }
-
-   return 1;
-   #undef return
-}
-
-void handle_key(TermKeyKey *key, char *raw, int len) {
+void handle_key(TermKeyKey *key) {
    binding_t *binding;
 
    // Masked mode =============================================================
@@ -353,7 +315,7 @@ void handle_key(TermKeyKey *key, char *raw, int len) {
    }
 
    WRITE_RAW:
-   write(context.program_fd, raw, len);
+   write(context.program_fd, context.input_buffer, context.input_len);
 }
 
 static
@@ -460,4 +422,29 @@ void set_input_mode() {
    tios.c_cc[VMIN]  = 1;
    tios.c_cc[VTIME] = 0;
    tcsetattr(STDIN_FILENO, TCSANOW, &tios);
+}
+
+int forkapp(char **argv, int *ptyfd, pid_t *pid) {
+   struct winsize wsz;
+   struct termios tios;
+
+   tcgetattr(STDIN_FILENO, &tios);
+   ioctl(STDIN_FILENO, TIOCGWINSZ, &wsz);
+      
+   *pid = forkpty(ptyfd, NULL, &tios, &wsz);
+
+   if (*pid < 0)
+      return -1;
+   else if (*pid == 0) {
+      execvp(argv[0], &argv[0]);
+      return -1;
+   }
+
+   return 1;
+}
+
+void update_pty_size(int _) {
+   struct winsize ws;
+   if (ioctl(STDIN_FILENO, TIOCGWINSZ, &ws) != -1)
+      ioctl(context.program_fd, TIOCSWINSZ, &ws);
 }

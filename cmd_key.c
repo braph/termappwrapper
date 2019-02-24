@@ -11,14 +11,6 @@ typedef struct cmd_key_args {
 } cmd_key_args;
 
 static
-void key_call(command_call_t *cmd, TermKeyKey *key) {
-   cmd_key_args *arg = (cmd_key_args*) cmd->arg;
-
-   for (int i = arg->repeat; i--; )
-      write_to_program(arg->string);
-}
-
-static
 char *key_parse_get_code(char *keydef) {
    TermKeyKey key;
    char *seq;
@@ -32,8 +24,14 @@ char *key_parse_get_code(char *keydef) {
    return seq; // is NULL if failed
 }
 
-static
-void* key_parse(int argc, char *args[], option *options) {
+static COMMAND_CALL_FUNC(call) {
+   cmd_key_args *arg = (cmd_key_args*) cmd->arg;
+
+   for (int i = arg->repeat; i--; )
+      writes_to_program(arg->string);
+}
+
+static COMMAND_PARSE_FUNC(parse) {
    char         *seq;
    int           repeat    = 1;
    cmd_key_args *cmd_args  = NULL;
@@ -68,8 +66,8 @@ command_t command_key = {
    .desc  = "Send key",
    .args  = (const char*[]) { "+KEY", 0 },
    .opts  = (const command_opt_t[]) {{'r', "NUM", "Repeat key"}, {0,0,0}},
-   .parse = &key_parse,
-   .call  = &key_call,
+   .parse = &parse,
+   .call  = &call,
    .free  = &free
 };
 

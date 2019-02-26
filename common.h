@@ -30,4 +30,7 @@
       printf("]\n"); \
    } while(0)
 
-int strprefix(const char *string, const char *prefix);
+inline __attribute__((always_inline))
+int strprefix(const char *string, const char *prefix) {
+   return (strstr(string, prefix) == string);
+}

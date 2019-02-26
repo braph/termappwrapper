@@ -8,9 +8,11 @@
 #include <term.h>
 #include <curses.h>
 
+TermKey *tk;
+
 typedef struct lookup_t {
   TermKeySym   sym;
-  char         *sequence;
+  const char   *sequence;
 } lookup_t;
 
 static lookup_t *normal_lookup;
@@ -97,7 +99,7 @@ int funcname2keysym(const char *funcname, TermKeySym *symp)
 }
 
 static
-char* get_sequence_for_sym(lookup_t *table, int size, TermKeySym sym) {
+const char* get_sequence_for_sym(lookup_t *table, int size, TermKeySym sym) {
    while (size--)
       if (table[size].sym == sym)
          return table[size].sequence;
@@ -106,7 +108,7 @@ char* get_sequence_for_sym(lookup_t *table, int size, TermKeySym sym) {
 }
  
 static 
-void table_add_key_sym(lookup_t *table, int *size, TermKeySym sym, char *sequence) {
+void table_add_key_sym(lookup_t *table, int *size, TermKeySym sym, const char *sequence) {
    table[*size].sym      = sym;
    table[*size].sequence = sequence;
    ++(*size);
@@ -134,7 +136,7 @@ int load_terminfo()
       if (strcmp(name + 4, "mouse") == 0)
          continue;
 
-      char *value = tigetstr(strnames[i]);
+      const char *value = tigetstr(strnames[i]);
       if (value == 0)
          continue;
 
@@ -172,7 +174,7 @@ void unload_terminfo() {
    free(shift_lookup);
 }
 
-TermKeyKey* parse_key_new(char *def) {
+TermKeyKey* parse_key_new(const char *def) {
    TermKeyKey *key = malloc(sizeof(*key));
 
    if (! parse_key(def, key)) {
@@ -183,7 +185,7 @@ TermKeyKey* parse_key_new(char *def) {
    return key;
 }
 
-int parse_key(char *def, TermKeyKey *key) {
+int parse_key(const char *def, TermKeyKey *key) {
    const char *last_char;
 
    // Try default
@@ -222,7 +224,7 @@ int parse_key(char *def, TermKeyKey *key) {
    return 0;
 }
 
-char *format_key(TermKeyKey *key) {
+const char *format_key(TermKeyKey *key) {
    static char buf[32];
    termkey_strfkey(tk, buf, sizeof(buf), key, 0);
    return buf;
@@ -242,7 +244,7 @@ char get_byte_for_mod(int modifiers) {
       + (4 * (!! (modifiers & TERMKEY_KEYMOD_CTRL)));
 }
 
-char *get_key_code(TermKeyKey *key) {
+const char *get_key_code(TermKeyKey *key) {
    static char buf[8];
 
    if (key->type == TERMKEY_TYPE_KEYSYM) {

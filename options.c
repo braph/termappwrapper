@@ -1,18 +1,18 @@
-#include "options.h"
-
 #include "iwrap.h"
+#include "options.h"
+#include "error_messages.h"
+
 #include <string.h>
 #include <stdlib.h>
 
 /*
  * Parse options, return the index of first non option or -1 on failure
  */
-static
 int parse_options(int argc, char *args[], const char *optstr, option **opts) {
-   int    i;
-   char  *c;
-   char  *oc;
-   int    opti = -1;
+   int i;
+   int opti = -1;
+   const char *c;
+   const char *oc;
    *opts = NULL;
 
    for (i = 0; i < argc; ++i) {
@@ -24,7 +24,8 @@ int parse_options(int argc, char *args[], const char *optstr, option **opts) {
          if (args[i][2] == '0') // end of options "--"
             goto RETURN;
          else {
-            write_error("long options not supported: %s", args[i]);
+            // treat --long-options as unknown option
+            write_error("%s: %s", E_UNKNOWN_OPT, args[i]);
             goto ERROR;
          }
       }
@@ -32,7 +33,7 @@ int parse_options(int argc, char *args[], const char *optstr, option **opts) {
       c = &args[i][1];
       do {
          if (! (oc = strchr(optstr, *c))) {
-            write_error("unknown option: %c\n", *c);
+            write_error("%s: %c\n", E_UNKNOWN_OPT, *c);
             goto ERROR;
          }
 
@@ -49,7 +50,7 @@ int parse_options(int argc, char *args[], const char *optstr, option **opts) {
                break;
             }
             else {
-               write_error("missing argument: %c\n", *c);
+               write_error("%s: %c\n", E_MISSING_ARG, *c);
                goto ERROR;
             }
          }

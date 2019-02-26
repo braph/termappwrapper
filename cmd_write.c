@@ -41,11 +41,14 @@ static COMMAND_PARSE_FUNC(parse) {
    return (void*) cmd_args;
 }
 
-command_t command_write = {
+const command_t command_write = {
    .name  = "write",
    .desc  = "Write string to program",
    .args  = (const char*[]) { "+STRING", 0 },
-   .opts  = (const command_opt_t[]) {{ 'r', "NUM", "repeat" }, {0,0,0}},
+   .opts  = (const command_opt_t[]) {
+      { 'r', "N", "Repeat the string N times" },
+      {0,0,0}
+   },
    .parse = &parse,
    .call  = &call,
    .free  = &free

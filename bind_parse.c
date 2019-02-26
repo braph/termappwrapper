@@ -8,15 +8,15 @@
 static
 int binding_append_command(binding_t *binding, int argc, char *args[])
 {
-   command_t  *cmd = NULL;
-   void       *arg = NULL;
+   command_t *cmd = NULL;
+   void      *arg = NULL;
 
    if (! (cmd = get_command(args[0]))) {
       write_error("unknown command: %s", args[0]);
       return 0;
    }
 
-   if (! (arg = command_create_arg(cmd, argc - 1, &args[1]))) {
+   if (! (arg = command_parse(cmd, argc - 1, &args[1]))) {
       prepend_error("%s", cmd->name);
       return 0;
    }

@@ -24,7 +24,7 @@ command_t* commands[] = {
 };
 int commands_size = (sizeof(commands)/sizeof(commands[0]));
 
-command_t* get_command(char *name) {
+command_t* get_command(const char *name) {
    for (int i = commands_size; i--;)
       if (strprefix(commands[i]->name, name))
          return commands[i];
@@ -32,7 +32,7 @@ command_t* get_command(char *name) {
    return NULL;
 }
 
-void* command_create_arg(command_t *cmd, int argc, char **args) {
+void* command_parse(command_t *cmd, int argc, char **args) {
    void   *ret     = NULL;
    option *options = NULL;
 
@@ -68,9 +68,5 @@ void* command_create_arg(command_t *cmd, int argc, char **args) {
 ERROR_OR_END:
    free(options);
    return ret; // is NULL if failed
-}
-
-void fprint_command_usage(FILE *fh, command_t *cmd) {
-   fprintf(fh, "%-15s%s", cmd->name, cmd->desc);
 }
 

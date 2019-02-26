@@ -7,6 +7,7 @@ const char *VI_CONF =
 "mo vi;"
 "re on;"
 "ig char;"
+"b C-c go global;"
 "b j ke Down;"
 "b k ke Up;"
 "b h ke Left;"

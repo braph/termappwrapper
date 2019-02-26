@@ -23,6 +23,9 @@ typedef struct cmd_readline_args {
    int16_t y;
    char  *prompt;
    char  *init;
+   char  *keyseq;
+   char  *prepend;
+   char  *append;
 } cmd_readline_args;
 
 static cmd_readline_args *current_arg;
@@ -102,74 +105,102 @@ static COMMAND_CALL_FUNC(call) {
    start_program_output();
    set_cursor(STDOUT_FILENO, old_y, old_x);
 
-   if (! args->no_refresh)
-      refresh_window(context.program_fd);
-
    if (line && strlen(line) > 0) {
+      if (args->prepend)
+         writes_to_program(args->prepend);
       writes_to_program(line);
+      if (args->append)
+         writes_to_program(args->append);
       if (! args->no_newline)
          write(context.program_fd, "\r", 1);
       free(line);
    }
+
+   if (! args->no_refresh)
+      refresh_window(context.program_fd);
+   if (args->keyseq)
+      writes_to_program(args->keyseq);
 }
 
+static void cmd_readline_free(void *);
 static COMMAND_PARSE_FUNC(parse) {
+   TermKeyKey key;
    cmd_readline_args *cmd_args = calloc(1, sizeof(*cmd_args));
    cmd_args->x = 1;
    cmd_args->y = -1;
+   const char *s;
 
    for (option *opt = options; opt->opt; ++opt) {
-      if (opt->opt == 'p')
-         cmd_args->prompt = strdup(opt->arg);
-      else if (opt->opt == 'i')
-         cmd_args->init = strdup(opt->arg);
-      else if (opt->opt == 'n')
-         cmd_args->no_newline = 1;
-      else if (opt->opt == 'C')
-         cmd_args->no_clear = 1;
-      else if (opt->opt == 'R')
-         cmd_args->no_refresh = 1;
-      else if (opt->opt == 'x') {
+      #define case break; case
+      switch (opt->opt) {
+      case 'n': cmd_args->no_newline = 1;
+      case 'C': cmd_args->no_clear   = 1;
+      case 'R': cmd_args->no_refresh = 1;
+      case 'p': cmd_args->prompt     = strdup(opt->arg);
+      case 'i': cmd_args->init       = strdup(opt->arg);
+      case 'A': cmd_args->append     = strdup(opt->arg);
+      case 'P': cmd_args->prepend    = strdup(opt->arg);
+      case 'k':
+         if (! parse_key(opt->arg, &key))
+            goto ERROR;
+
+         if (! (s = get_key_code(&key))) {
+            write_error("Could not get key code for %s", opt->arg);
+            goto ERROR;
+         }
+
+         cmd_args->keyseq = strdup(s);
+      case 'x':
          if (! (cmd_args->x = atoi(opt->arg))) {
             write_error("invalid value");
             goto ERROR;
          }
-      }
-      else if (opt->opt == 'y') {
+      case 'y':
          if (! (cmd_args->y = atoi(opt->arg))) {
             write_error("invalid value");
             goto ERROR;
          }
       }
+      #undef case
    }
 
    return (void*) cmd_args;
 
 ERROR:
-   free(cmd_args);
+   cmd_readline_free(cmd_args);
    return NULL;
 }
 
 static
 void cmd_readline_free(void *_arg) {
    cmd_readline_args *arg = (cmd_readline_args*) _arg;
-   free(arg->prompt);
    free(arg->init);
+   free(arg->prompt);
+   free(arg->keyseq);
+   free(arg->append);
+   free(arg->prepend);
    free(arg);
 }
 
-command_t command_readline = {
+const command_t command_readline = {
    .name  = "readline",
-   .desc  = "Open a readline",
+   .desc  = 
+      "Get input using readline\n\n"
+      " The program's window content is refreshed by resizing its pty.\n"
+      " You may use *-k* to send a key (e.g. *C-l*) for refreshing\n"
+      " the screen instead.",
    .args  = NULL,
    .opts  = (const command_opt_t[]) {
-      {'p', "PROMPT", "Set prompt"},
-      {'i', "INIT",   "Set initial text"},
-      {'x', "X",      "Set x cursor postion (starting from left - use negative value to count from right)"},
-      {'y', "Y",      "Set y cursor postion (starting from top - use negative value to count from bottom)"},
-      {'n', NULL,     "Do not append a newline to the user input"},
-      {'C', NULL,     "Do not clear the line"},
-      {'R', NULL,     "Do not refresh the window"},
+      {'p', "PROMPT", "Set prompt text"},
+      {'i', "INIT",   "Set pre fill buffer with text"},
+      {'x', "X",      "Set x cursor position (starting from left - use negative value to count from right)"},
+      {'y', "Y",      "Set y cursor position (starting from top - use negative value to count from bottom)"},
+      {'n', NULL,     "Do not write a tralining newline"},
+      {'k', "KEY",    "Send key after writing line"},
+      {'C', NULL,     "Do not clear the cursor line"},
+      {'R', NULL,     "Do not refresh the window (1)"},
+      {'P', "TEXT",   "Prepend text to result"},
+      {'A', "TEXT",   "Append text to result"},
       {0,0,0}
    },
    .parse = &parse,

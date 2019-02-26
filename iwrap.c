@@ -1,6 +1,7 @@
 #include "iwrap.h"
-#include "termkeystuff.h"
 #include "common.h"
+#include "termkeystuff.h"
+#include "error_messages.h"
 
 #include <pty.h>
 #include <poll.h>
@@ -10,6 +11,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <unistd.h>
+
+struct context_t   context;
 
 static char* iwrap_error = NULL;
 #define      IWRAP_ERROR_MAX 2048
@@ -47,7 +50,7 @@ void prepend_error(const char *fmt, ...) {
    free(old_error);
 }
 
-void writeb_to_program(char *s, ssize_t len) {
+void writeb_to_program(const char *s, ssize_t len) {
    ssize_t n;
 
    for (int i = 5; i--; ) {
@@ -63,7 +66,7 @@ void writeb_to_program(char *s, ssize_t len) {
    }
 }
 
-void writes_to_program(char *s) {
+void writes_to_program(const char *s) {
    writeb_to_program(s, strlen(s));
 }
 
@@ -101,7 +104,7 @@ void keymode_init(keymode_t *km, const char *name) {
    km->root->type       = BINDING_TYPE_CHAINED;
 }
 
-keymode_t* get_keymode(char *name) {
+keymode_t* get_keymode(const char *name) {
    if (streq(name, "global"))
       return &context.global_mode;
 
@@ -112,7 +115,7 @@ keymode_t* get_keymode(char *name) {
    return NULL;
 }
 
-keymode_t* add_keymode(char *name) {
+keymode_t* add_keymode(const char *name) {
    keymode_t *km = malloc(sizeof(*km));
    keymode_init(km, name);
 
@@ -219,7 +222,7 @@ int check_args(int argc, const char *args[]) {
    for (const char **arg = args; *arg; ++arg) {
       if (**arg == '+') {
          if (! argc) {
-            write_error("missing argument: <%s>", (*arg+1));
+            write_error("%s: <%s>", E_MISSING_ARG, (*arg+1));
             return 0;
          }
 
@@ -230,7 +233,7 @@ int check_args(int argc, const char *args[]) {
       }
       else {
          if (! argc--) {
-            write_error("missing argument: <%s>", *arg);
+            write_error("%s: <%s>", E_MISSING_ARG, *arg);
             return 0;
          }
       }
@@ -241,7 +244,7 @@ int check_args(int argc, const char *args[]) {
 
 char* args_get_arg(int *argc, char ***argv, const char *name) {
    if (! *argc) {
-      write_error("missing argument: ", name);
+      write_error("%s: %s", E_MISSING_ARG, name);
       return NULL;
    }
 
@@ -327,8 +330,7 @@ void *redirect_to_stdout(void *_fd)
    char     *b;
    ssize_t  bytes_read;
    ssize_t  bytes_written;
-
-   struct pollfd fds = { .fd = fd, .events = POLLIN };
+   struct   pollfd fds = { .fd = fd, .events = POLLIN };
 
    for (;;) {
       if (poll(&fds, 1, 100) > 0 && fds.revents & POLLIN ) {

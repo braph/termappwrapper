@@ -11,7 +11,7 @@ ifeq ($(DEBUG), 1)
 	CC_FLAGS += -g
 	STRIP = true
 else
-	CC_FLAGS += -O2
+	CC_FLAGS += -O3
 endif
 
 CC_FLAGS += -DFREE_MEMORY=$(FREE) -DDEBUG=$(DEBUG)
@@ -19,7 +19,7 @@ CC_FLAGS += -DFREE_MEMORY=$(FREE) -DDEBUG=$(DEBUG)
 CMDS = goto ignore key load mask pass readline signal write
 CMDS := $(addprefix cmd_, $(CMDS))
 
-OBJS  = termkeystuff bind_parse iwrap conf lexer common options commands $(CMDS)
+OBJS  = termkeystuff bind_parse iwrap conf lexer options commands help error_messages $(CMDS)
 OBJS := $(addsuffix .o, $(OBJS))
 
 build: $(OBJS)
@@ -32,6 +32,10 @@ build: $(OBJS)
 
 install:
 	install -m 0755 $(PROGNAME) $(PREFIX)/bin/$(PROGNAME)
+
+doc: .force
+	./tools/genhelp.py > $(PROGNAME).md
+	go-md2man -in $(PROGNAME).md -out $(PROGNAME).1
 
 vi_conf.h: .force
 	./tools/stripconf.py -c -v VI_CONF confs/vi.conf > vi_conf.h

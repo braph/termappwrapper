@@ -21,7 +21,7 @@ static struct {
 #define SIGNAL_SIZE (sizeof(signals)/sizeof(signals[0]))
 
 static
-int name2signal(char *name) {
+int name2signal(const char *name) {
    if (! strncasecmp(name, "SIG", 3))
       name += 3;
 
@@ -52,12 +52,12 @@ static COMMAND_PARSE_FUNC(parse) {
    int number;
 
    if (! (number = name2signal(args[0])))
-      write_error("unknown signal");
+      write_error("unknown signal: %s", args[0]);
 
    return (void*) (uintptr_t) number; // is NULL if failed
 }
 
-command_t command_signal = {
+const command_t command_signal = {
    .name  = "signal",
    .desc  = "Send signal to program",
    .args  = (const char *[]) { "SIGNAL", 0 },

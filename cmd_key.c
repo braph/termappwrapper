@@ -1,19 +1,18 @@
 #include "iwrap.h"
-#include "termkeystuff.h"
 
 #include <string.h>
 #include <stdint.h>
 #include <unistd.h>
 
 typedef struct cmd_key_args {
-   short repeat;
-   char  string[1];
+   uint16_t repeat;
+   char     string[1];
 } cmd_key_args;
 
 static
-char *key_parse_get_code(char *keydef) {
+const char *key_parse_get_code(const char *keydef) {
    TermKeyKey key;
-   char *seq;
+   const char *seq;
 
    if (! parse_key(keydef, &key))
       return 0;
@@ -32,7 +31,7 @@ static COMMAND_CALL_FUNC(call) {
 }
 
 static COMMAND_PARSE_FUNC(parse) {
-   char         *seq;
+   const char   *seq;
    int           repeat    = 1;
    cmd_key_args *cmd_args  = NULL;
    char         *sequences = malloc(argc * 16);
@@ -61,11 +60,14 @@ END_OR_ERROR:
    return (void*) cmd_args; // is NULL if failed
 }
 
-command_t command_key = {
+const command_t command_key = {
    .name  = "key",
-   .desc  = "Send key",
+   .desc  = "Send key to program",
    .args  = (const char*[]) { "+KEY", 0 },
-   .opts  = (const command_opt_t[]) {{'r', "NUM", "Repeat key"}, {0,0,0}},
+   .opts  = (const command_opt_t[]) {
+      {'r', "N", "Repeat the key N times"},
+      {0,0,0}
+   },
    .parse = &parse,
    .call  = &call,
    .free  = &free

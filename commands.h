@@ -7,8 +7,7 @@
 extern command_t* commands[];
 extern int        commands_size;
 
-command_t* get_command(char *);
-void*      command_create_arg(command_t *, int, char **);
-void       fprint_command_usage(FILE *, command_t*);
+command_t* get_command(const char *);
+void*      command_parse(command_t *, int, char **);
 
 #endif

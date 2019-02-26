@@ -4,7 +4,7 @@ static COMMAND_CALL_FUNC(call) {
    context.mask = 1;
 }
 
-command_t command_mask = {
+const command_t command_mask = {
    .name  = "mask",
    .desc  = "Do not interprete the next keypress",
    .args  = NULL,

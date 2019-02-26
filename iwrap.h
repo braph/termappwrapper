@@ -8,14 +8,14 @@
 #include <termkey.h>
 
 #include "options.h"
+#include "termkeystuff.h"
 
 struct context_t;
 struct binding_t;
 struct command_call_t;
 
 // === Global variables ===
-TermKey            *tk;
-struct context_t   context;
+extern struct context_t context;
 // ========================
 
 char* get_error();
@@ -46,7 +46,6 @@ typedef struct command_call_t {
 
 #define COMMAND_CALL_FUNC(NAME)  void  NAME (struct command_call_t* cmd, TermKeyKey *key)
 #define COMMAND_PARSE_FUNC(NAME) void* NAME (int argc, char *args[], option *options)
-// ============================================================================
 
 // === Bindings ===============================================================
 #define BINDING_TYPE_COMMAND 0
@@ -85,8 +84,8 @@ typedef struct keymode_t {
    binding_t   *root;
 } keymode_t;
 
-void       keymode_init(keymode_t*, const char*);
-void       keymode_free(keymode_t*);
+void  keymode_init(keymode_t*, const char*);
+void  keymode_free(keymode_t*);
 
 
 typedef struct context_t {
@@ -111,15 +110,12 @@ typedef struct context_t {
 
 void context_init();
 void context_free();
-keymode_t* get_keymode(char *name);
-keymode_t* add_keymode(char *name);
-
-#define check_args_va(argc, ...) \
-   check_args(argc, (const char*[]) { __VA_ARGS__, 0 } )
+keymode_t* get_keymode(const char *name);
+keymode_t* add_keymode(const char *name);
 
 void  handle_key(TermKeyKey*);
-void  writes_to_program(char *);
-void  writeb_to_program(char *, ssize_t);
+void  writes_to_program(const char *);
+void  writeb_to_program(const char *, ssize_t);
 int   check_args(int argc, const char *args[]); 
 char* args_get_arg(int *, char***, const char*);
 int   start_program_output();

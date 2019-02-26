@@ -1,8 +1,10 @@
 #include "conf.h"
+#include "lexer.h"
 #include "iwrap.h"
 #include "common.h"
-#include "lexer.h"
+#include "commands.h"
 #include "termkeystuff.h"
+#include "error_messages.h"
 
 #include <errno.h>
 #include <string.h>
@@ -11,7 +13,7 @@
 int binding_append_commands(binding_t*, int, char *[]);
 
 // cmd_load.c
-int load_conf(char *);
+int load_conf(const char *);
 
 static int lex_args(char ***args) {
    int ttype;
@@ -35,19 +37,24 @@ static int lex_args(char ***args) {
    return n;
 }
 
-static int mode(int argc, char *args[]) {
-   if (! check_args_va(argc, "mode"))
-      return 0;
-
+// === mode ===================================================================
+static int mode(int argc, char *args[], option *options) {
    if (! (context.current_mode = get_keymode(args[0])))
       context.current_mode = add_keymode(args[0]);
    return 1;
 }
 
-static int ignore_unmapped(int argc, char *args[]) {
-   if (! check_args_va(argc, "+key types"))
-      return 0;
+conf_command_t conf_mode = {
+   .name  = "mode",
+   .desc  = "Start configuring mode",
+   .args  = (const char*[]) { "mode", 0 },
+   .opts  = NULL,
+   .parse = &mode
+};
+// ============================================================================
 
+// === ignore_unmapped ========================================================
+static int ignore_unmapped(int argc, char *args[], option *options) {
    int flags = 0;
 
    for (int i = argc; i--; )
@@ -63,6 +70,8 @@ static int ignore_unmapped(int argc, char *args[]) {
          flags |= TERMKEY_TYPE_TO_FLAG(TERMKEY_TYPE_FUNCTION);
       else if (strprefix(args[i], "mouse"))
          flags |= TERMKEY_TYPE_TO_FLAG(TERMKEY_TYPE_MOUSE);
+      else if (strprefix(args[i], "none"))
+         flags = 0;
       else {
          write_error("unknown key type: %s", args[i]);
          return 0;
@@ -72,10 +81,25 @@ static int ignore_unmapped(int argc, char *args[]) {
    return 1;
 }
 
-static int repeat(int argc, char *args[]) {
-   if (! check_args_va(argc, "on|off"))
-      return 0;
+conf_command_t conf_ignore_unmapped = {
+   .name  = "ignore_unmapped",
+   .desc  = // TODO: spaces2tabs
+      "Do not pass unmapped keys to program\n\n"
+      "_types_\n\n"
+      "  char:     characters\n"
+      "  sym:      symbolic keys\n"
+      "  function: function keys (F1..FN)\n"
+      "  mouse:    mouse events\n"
+      "  all:      char|sym|function\n"
+      "  none:     none\n",
+   .args  = (const char*[]) { "types", 0 },
+   .opts  = NULL,
+   .parse = &ignore_unmapped
+};
+// ============================================================================
 
+// === repeat =================================================================
+static int repeat(int argc, char *args[], option *options) {
    if (streq(args[0], "on"))
       context.current_mode->repeat_enabled = 1;
    else if (streq(args[0], "off"))
@@ -88,7 +112,17 @@ static int repeat(int argc, char *args[]) {
    return 1;
 }
 
-static int bind(int argc, char *args[]) {
+conf_command_t conf_repeat = {
+   .name  = "repeat",
+   .desc  = "Enable repetition mode",
+   .args  = (const char*[]) { "on|off", 0 },
+   .opts  = NULL,
+   .parse = &repeat
+};
+// ============================================================================
+
+// === bind ===================================================================
+static int bind(int argc, char *args[], option *options) {
    TermKeyKey key;
    binding_t  *binding, *binding_next;
 
@@ -118,7 +152,7 @@ static int bind(int argc, char *args[]) {
    }
 
    if (binding == context.current_mode->root) {
-      write_error("missing key");
+      write_error("%s: %s", E_MISSING_ARG, "KEY");
       return 0;
    }
 
@@ -133,7 +167,7 @@ static int bind(int argc, char *args[]) {
    }
 
    if (argc == 0) {
-      write_error("missing command");
+      write_error("%s: %s", E_MISSING_ARG, "COMMAND");
       return 0;
    }
 
@@ -141,11 +175,21 @@ static int bind(int argc, char *args[]) {
    return binding_append_commands(binding, argc, args);
 }
 
-static int unbind(int argc, char *args[]) {
-   TermKeyKey key;
+conf_command_t conf_bind = {
+   .name  = "bind",
+   .desc  = 
+      "Bind key to commands\n"
+      "Multiple commands are separated by '\\;'.\n"
+      "Chaining keys is possible\n",
+   .args  = (const char*[]) { "+KEY", "+COMMAND", 0 },
+   .opts  = NULL,
+   .parse = &bind
+};
+// ============================================================================
 
-   if (! check_args_va(argc, "key"))
-      return 0;
+// === unbind =================================================================
+static int unbind(int argc, char *args[], option *options) {
+   TermKeyKey key;
 
    if (! parse_key(args[0], &key))
       return 0;
@@ -154,37 +198,45 @@ static int unbind(int argc, char *args[]) {
    return 1;
 }
 
-static int load(int argc, char *args[]) {
-   if (! check_args_va(argc, "file"))
-      return 0;
+conf_command_t conf_unbind = {
+   .name  = "unbind",
+   .desc  = "Unbind key to commands",
+   .args  = (const char*[]) { "+KEY", "+COMMAND", 0 },
+   .opts  = NULL,
+   .parse = &unbind
+};
+// ============================================================================
 
+// === load ===================================================================
+static int load(int argc, char *args[], option *options) {
    return load_conf(args[0]);
 }
 
-typedef int (*conf_command_t)(int, char*[]);
-
-static struct {
-   const char *name;
-   int       (*func)(int, char*[]);
-   char      **args;
-} conf_commands[] = {
-   { "bind",             &bind,           },
-   { "load",             &load,           },
-   { "unbind",           &unbind,         },
-   { "mode",             &mode,           },
-   { "repeat",           &repeat,         },
-   { "ignore_unmapped",  &ignore_unmapped }
+conf_command_t conf_load = {
+   .name  = "load",
+   .desc  = "", // TODO
+   .args  = (const char*[]) { "FILE", 0 },
+   .opts  = NULL,
+   .parse = &load
 };
-#define CONF_COMMANDS_SIZE (sizeof(conf_commands)/sizeof(conf_commands[0]))
+// ============================================================================
 
-static
-conf_command_t
-get_conf_command(char *name, const char **expaned_name) {
-   for (int i = CONF_COMMANDS_SIZE; i--; )
-      if (strprefix(conf_commands[i].name, name)) {
-         *expaned_name = conf_commands[i].name;
-         return conf_commands[i].func;
-      }
+conf_command_t *conf_commands[] = {
+   &conf_bind,
+   &conf_load,
+   &conf_unbind,
+   &conf_mode,
+   &conf_repeat,
+   &conf_ignore_unmapped
+};
+
+int conf_commands_size = (sizeof(conf_commands)/sizeof(conf_commands[0]));
+
+conf_command_t*
+get_conf_command(const char *name) {
+   for (int i = conf_commands_size; i--; )
+      if (strprefix(conf_commands[i]->name, name))
+         return conf_commands[i];
    return NULL;
 }
 
@@ -193,8 +245,7 @@ int read_conf_stream(FILE *fh) {
    char        **args = NULL;
    int         nargs;
 
-   const char     *expaned_name;
-   conf_command_t conf_command;
+   conf_command_t *conf_command;
    keymode_t      *mode_restore = context.current_mode;
 
    lex_init(fh);
@@ -209,13 +260,13 @@ int read_conf_stream(FILE *fh) {
       if (nargs == 0)
          continue;
 
-      if (! (conf_command = get_conf_command(args[0], &expaned_name))) {
+      if (! (conf_command = get_conf_command(args[0]))) {
          write_error("%d:%d: unknown command: %s", lex_line, lex_line_pos, args[0]);
          ret = 0;
          goto END;
       }
-      else if (! conf_command(nargs - 1, &args[1])) {
-         prepend_error("%d:%d: %s", lex_line, lex_line_pos, expaned_name);
+      else if (! command_parse((command_t*) conf_command, nargs - 1, &args[1])) {
+         prepend_error("%d:%d: %s", lex_line, lex_line_pos, conf_command->name);
          ret = 0;
          goto END;
       }

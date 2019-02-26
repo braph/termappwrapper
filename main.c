@@ -1,29 +1,36 @@
-#include "iwrap.h"
 #include "conf.h"
-#include "termkeystuff.h"
+#include "help.h"
+#include "iwrap.h"
 #include "vi_conf.h"
 #include "commands.h"
+#include "termkeystuff.h"
 
 #include <err.h>
-#include <errno.h>
 #include <poll.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <sys/wait.h>
 #include <termios.h>
+#include <sys/wait.h>
 
 #define USAGE \
-"Usage: %s [OPTIONS] PROGRAM [ARGUMENTS...]\n\n" \
-"OPTIONS\n\n"                                    \
-" -c file\t"                "Read config file\n"             \
-" -C string\t"              "Read config string\n"           \
-" -m mode\t"                "Start in mode\n"                \
-" -b key cmd\t"             "Alias for 'bind key cmd'\n"     \
-" -k <key in> <key out>"    "Alias for 'bind key_in key key_out'\n" \
-" -v\t\t"                   "Load vi config\n"
+"Usage: %s [OPTIONS] PROGRAM [ARGUMENTS...]\n\n"               \
+"OPTIONS\n\n"                                                  \
+" -c FILE\t"                "Read config file (see -h load)\n" \
+" -C STRING\t"              "Read config string\n"             \
+" -m MODE\t"                "Switch/Define mode\n"             \
+" -b KEY CMD\t"             "Alias for 'bind KEY CMD'\n"       \
+" -k IN OUT\t"              "Alias for 'bind IN key OUT'\n"    \
+" -v\t\t"                   "Load vi config\n"                 \
+"\n" \
+"For more help:\n"                                             \
+" -h commands\n"                                               \
+" -h config\n"                                                 \
+" -h keys\n"                                                   \
+" -h COMMAND\n"
 #define GETOPT_OPTS "+c:C:m:b:k:hvu:"
 
 /* TODO: repeat-max
@@ -31,12 +38,11 @@
  * TODO: escape-char, system-conf-dir
  * search for configuration files per application basis */
 
-int    help(char *);
 void   cleanup();
 void   sighandler(int);
 char*  alias(const char*, ...);
 void   tmux_fix();
-int    load_conf(char *); // cmd_load.c
+int    load_conf(const char *); // cmd_load.c
 
 char *alias_buf = NULL;
 
@@ -57,7 +63,7 @@ int main(int argc, char *argv[]) {
       #define case break; case
       switch (c) {
       case 'h':
-         return help(argv[0]);
+         return help(argv[0], USAGE, argv[optind]);
       case 'm':
          if (! (context.current_mode = get_keymode(optarg)))
             ERR(": unknown mode: %s", optarg);
@@ -159,19 +165,6 @@ int main(int argc, char *argv[]) {
          handle_key(&key);
          context.input_len = 0;
       }
-   }
-
-   return 0;
-}
-
-int help(char *prog) {
-   printf(USAGE"\n", prog);
-
-   printf("Available commands:\n");
-   for (int i = 0; i < commands_size; ++i) {
-      printf("  ");
-      fprint_command_usage(stdout, commands[i]);
-      printf("\n");
    }
 
    return 0;

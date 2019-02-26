@@ -4,9 +4,10 @@ static COMMAND_CALL_FUNC(call) {
    (void) 0;
 }
 
-command_t command_ignore = {
+const command_t command_ignore = {
    .name  = "ignore",
-   .desc  = "Do nothing",
+   .desc  = "Do nothing\n"
+            "This command can be used to ignore keypresses.",
    .args  = NULL,
    .opts  = NULL,
    .parse = NULL,

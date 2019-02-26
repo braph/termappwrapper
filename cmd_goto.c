@@ -13,9 +13,9 @@ static COMMAND_PARSE_FUNC(parse) {
    return (void*) km;
 }
 
-command_t command_goto = {
+const command_t command_goto = {
    .name  = "goto",
-   .desc  = "Switch current input mode",
+   .desc  = "Switch the current mode",
    .args  = (const char*[]) { "MODE", 0 },
    .opts  = NULL,
    .call  = &call,

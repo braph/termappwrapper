@@ -79,3 +79,16 @@ void* cmd_parse_none(int argc, char **args) {
       if (key->code.codepoint == 's') {
    */
 
+#define check_args_va(argc, ...) \
+   check_args(argc, (const char*[]) { __VA_ARGS__, 0 } )
+
+/*
+struct context_t   context = {
+   .keymodes        = NULL,
+   .n_keymodes      = 0,
+   .current_mode    = &context.global_mode,
+   .current_binding = NULL,
+   .mask            = 0,
+   .repeat          = 0
+};
+*/

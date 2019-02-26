@@ -137,8 +137,41 @@ char* lex_token() {
    return lex_token_buf;
 }
 
-static int read_double_quote() {
+static unsigned int read_hex() {
+   int  c;
+   unsigned int val = 0;
+
+   while (isxdigit((c = lex_getc())))
+      val = val * 16 + 
+         (c <= '9' ? c - '0'      :
+         (c <= 'F' ? c - 'A' + 10 :
+                     c - 'a' + 10));
+   lex_ungetc(c);
+   return val;
+}
+
+static unsigned int read_oct() {
+   int  c;
+   unsigned int val = 0;
+
+   while ((c = lex_getc()) >= '0' && c < '8')
+      val = val * 8 + c - '0';
+   lex_ungetc(c);
+   return val;
+}
+
+static unsigned int read_dec() {
    int c;
+   unsigned val = 0;
+
+   while (isdigit((c = lex_getc())))
+      val = val * 10 + c - '0';
+   lex_ungetc(c);
+   return val;
+}
+
+static int read_double_quote() {
+   int  c;
 
    token_clear();
    while ((c = lex_getc()) != EOF) {
@@ -146,8 +179,25 @@ static int read_double_quote() {
          token_finalize();
          return LEX_TOKEN_DOUBLE_QUOTE;
       }
-      else if (c == '\\' && lex_peekc() == '"')
-         token_append(lex_getc());
+      else if (c == '\\') {
+         switch ((c = lex_getc())) {
+            case 'a':   token_append('\a'); break;
+            case 'b':   token_append('\b'); break;
+            case 't':   token_append('\t'); break;
+            case 'n':   token_append('\n'); break;
+            case 'v':   token_append('\v'); break;
+            case 'f':   token_append('\f'); break;
+            case 'r':   token_append('\r'); break;
+            case 'e':   token_append(033);  break;
+            case 'x':   token_append(read_hex()); break;
+            case '0':   token_append(read_oct()); break;
+            case '1': case '2': case '3':
+            case '4': case '5': case '6':
+            case '7': case '8': case '9':
+                        token_append(read_dec()); break;
+            default:    token_append(c);
+         }
+      }
       else
          token_append(c);
    }

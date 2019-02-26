@@ -9,20 +9,6 @@ typedef struct cmd_key_args {
    char     string[1];
 } cmd_key_args;
 
-static
-const char *key_parse_get_code(const char *keydef) {
-   TermKeyKey key;
-   const char *seq;
-
-   if (! parse_key(keydef, &key))
-      return 0;
-
-   if (! (seq = get_key_code(&key)))
-      write_error("Could not get key code for %s", keydef);
-
-   return seq; // is NULL if failed
-}
-
 static COMMAND_CALL_FUNC(call) {
    cmd_key_args *arg = (cmd_key_args*) cmd->arg;
 

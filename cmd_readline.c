@@ -124,11 +124,9 @@ static COMMAND_CALL_FUNC(call) {
 
 static void cmd_readline_free(void *);
 static COMMAND_PARSE_FUNC(parse) {
-   TermKeyKey key;
    cmd_readline_args *cmd_args = calloc(1, sizeof(*cmd_args));
    cmd_args->x = 1;
    cmd_args->y = -1;
-   const char *s;
 
    for (option *opt = options; opt->opt; ++opt) {
       #define case break; case
@@ -141,15 +139,10 @@ static COMMAND_PARSE_FUNC(parse) {
       case 'A': cmd_args->append     = strdup(opt->arg);
       case 'P': cmd_args->prepend    = strdup(opt->arg);
       case 'k':
-         if (! parse_key(opt->arg, &key))
+         if (! (cmd_args->keyseq = (char*) key_parse_get_code(opt->arg)))
             goto ERROR;
 
-         if (! (s = get_key_code(&key))) {
-            write_error("Could not get key code for %s", opt->arg);
-            goto ERROR;
-         }
-
-         cmd_args->keyseq = strdup(s);
+         cmd_args->keyseq = strdup(cmd_args->keyseq);
       case 'x':
          if (! (cmd_args->x = atoi(opt->arg))) {
             write_error("invalid value");
@@ -185,10 +178,10 @@ void cmd_readline_free(void *_arg) {
 const command_t command_readline = {
    .name  = "readline",
    .desc  = 
-      "Get input using readline\n\n"
-      " The program's window content is refreshed by resizing its pty.\n"
-      " You may use *-k* to send a key (e.g. *C-l*) for refreshing\n"
-      " the screen instead.",
+      "Write to program using readline\n\n"
+      "The program's window content is refreshed by resizing its pty.\n"
+      "You may use *-R* in conjunction with *-k* to send a key (e.g. *C-l*) for refreshing\n"
+      "the screen instead. (This may be faster)",
    .args  = NULL,
    .opts  = (const command_opt_t[]) {
       {'p', "PROMPT", "Set prompt text"},
@@ -196,11 +189,11 @@ const command_t command_readline = {
       {'x', "X",      "Set x cursor position (starting from left - use negative value to count from right)"},
       {'y', "Y",      "Set y cursor position (starting from top - use negative value to count from bottom)"},
       {'n', NULL,     "Do not write a tralining newline"},
-      {'k', "KEY",    "Send key after writing line"},
+      {'k', "KEY",    "Send _KEY_ after writing line"},
       {'C', NULL,     "Do not clear the cursor line"},
       {'R', NULL,     "Do not refresh the window (1)"},
-      {'P', "TEXT",   "Prepend text to result"},
-      {'A', "TEXT",   "Append text to result"},
+      {'P', "TEXT",   "Prepend _TEXT_ to result"},
+      {'A', "TEXT",   "Append _TEXT_ to result"},
       {0,0,0}
    },
    .parse = &parse,

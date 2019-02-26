@@ -46,8 +46,8 @@ static int mode(int argc, char *args[], option *options) {
 
 conf_command_t conf_mode = {
    .name  = "mode",
-   .desc  = "Start configuring mode",
-   .args  = (const char*[]) { "mode", 0 },
+   .desc  = "Start configuring MODE",
+   .args  = (const char*[]) { "MODE", 0 },
    .opts  = NULL,
    .parse = &mode
 };
@@ -83,16 +83,16 @@ static int ignore_unmapped(int argc, char *args[], option *options) {
 
 conf_command_t conf_ignore_unmapped = {
    .name  = "ignore_unmapped",
-   .desc  = // TODO: spaces2tabs
+   .desc  =
       "Do not pass unmapped keys to program\n\n"
-      "_types_\n\n"
+      "_TYPES_\n\n"
       "  char:     characters\n"
       "  sym:      symbolic keys\n"
       "  function: function keys (F1..FN)\n"
       "  mouse:    mouse events\n"
       "  all:      char|sym|function\n"
-      "  none:     none\n",
-   .args  = (const char*[]) { "types", 0 },
+      "  none:     none",
+   .args  = (const char*[]) { "TYPES", 0 },
    .opts  = NULL,
    .parse = &ignore_unmapped
 };
@@ -178,9 +178,9 @@ static int bind(int argc, char *args[], option *options) {
 conf_command_t conf_bind = {
    .name  = "bind",
    .desc  = 
-      "Bind key to commands\n"
-      "Multiple commands are separated by '\\;'.\n"
-      "Chaining keys is possible\n",
+      "Bind _KEY_ to _COMMAND_\n"
+      "Multiple commands can be specified, they have to be seperated by '\\\\;'.\n"
+      "Keys can be chained",
    .args  = (const char*[]) { "+KEY", "+COMMAND", 0 },
    .opts  = NULL,
    .parse = &bind
@@ -214,7 +214,7 @@ static int load(int argc, char *args[], option *options) {
 
 conf_command_t conf_load = {
    .name  = "load",
-   .desc  = "", // TODO
+   .desc  = "Load configuration file",
    .args  = (const char*[]) { "FILE", 0 },
    .opts  = NULL,
    .parse = &load

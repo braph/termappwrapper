@@ -450,3 +450,17 @@ void update_pty_size(int _) {
    if (ioctl(STDIN_FILENO, TIOCGWINSZ, &ws) != -1)
       ioctl(context.program_fd, TIOCSWINSZ, &ws);
 }
+
+const char *key_parse_get_code(const char *keydef) {
+   TermKeyKey key;
+   const char *seq;
+
+   if (! parse_key(keydef, &key))
+      return 0;
+
+   if (! (seq = get_key_code(&key)))
+      write_error("Could not get key code for %s", keydef);
+
+   return seq; // is NULL if failed
+}
+

@@ -14,6 +14,10 @@ else
 	CC_FLAGS += -O3
 endif
 
+ifeq ($(README), 1)
+CC_FLAGS += -DBOLD='"**"' -DBOLD_END='"**"' -DITALIC='"_"' -DITALIC_END='"_"'
+endif
+
 CC_FLAGS += -DFREE_MEMORY=$(FREE) -DDEBUG=$(DEBUG)
 
 CMDS = goto ignore key load mask pass readline signal write
@@ -32,6 +36,9 @@ build: $(OBJS)
 
 install:
 	install -m 0755 $(PROGNAME) $(PREFIX)/bin/$(PROGNAME)
+
+README.md: .force
+	./termappwrapper -h all > README.md
 
 doc: .force
 	./tools/genhelp.py > $(PROGNAME).md

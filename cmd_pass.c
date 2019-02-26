@@ -6,7 +6,7 @@ static COMMAND_CALL_FUNC(call) {
 
 const command_t command_pass = {
    .name  = "pass",
-   .desc  = "Pass the current key to the program",
+   .desc  = "Write the pressed key to the program",
    .args  = NULL,
    .opts  = NULL,
    .parse = NULL,

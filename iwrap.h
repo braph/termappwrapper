@@ -23,25 +23,25 @@ void  write_error(const char *fmt, ...);
 void  prepend_error(const char *fmt, ...);
 
 // === Command stuff ==========================================================
-typedef struct command_opt_t {
+typedef const struct command_opt_t {
    const char  opt;
    const char *meta;
    const char *desc;
 } command_opt_t;
 
-typedef struct command_t {
-   const char          *name;
-   const char          *desc;
-   const char         **args;
-   const command_opt_t *opts;
-   void*              (*parse) (int, char **, option*);
-   void               (*call)  (struct command_call_t*, TermKeyKey*);
-   void               (*free)  (void*);
+typedef const struct command_t {
+   const char           *name;
+   const char           *desc;
+   const char          **args;
+   const command_opt_t  *opts;
+   void*               (*parse) (int, char **, option*);
+   void                (*call)  (struct command_call_t*, TermKeyKey*);
+   void                (*free)  (void*);
 } command_t;
 
 typedef struct command_call_t {
-   struct command_t *command;
-   void             *arg;
+   command_t  *command;
+   void       *arg;
 } command_call_t;
 
 #define COMMAND_CALL_FUNC(NAME)  void  NAME (struct command_call_t* cmd, TermKeyKey *key)
@@ -88,7 +88,7 @@ void  keymode_init(keymode_t*, const char*);
 void  keymode_free(keymode_t*);
 
 
-typedef struct context_t {
+struct context_t {
    int            program_fd;
    pid_t          program_pid;
 
@@ -106,7 +106,7 @@ typedef struct context_t {
 
    struct termios tios_restore;
    pthread_t      redir_thread;
-} context_t;
+};
 
 void context_init();
 void context_free();
@@ -120,6 +120,7 @@ int   check_args(int argc, const char *args[]);
 char* args_get_arg(int *, char***, const char*);
 int   start_program_output();
 void  stop_program_output();
+const char *key_parse_get_code(const char *);
 
 void  set_input_mode();
 void  get_cursor(int fd, int *x, int *y);

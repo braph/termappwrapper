@@ -8,17 +8,13 @@
 #include <string.h>
 
 #define CFG_DIR_NAME "termappwrapper"
-#define SYSTEM_DIR ""
 
 static
 int load_conf_at(const char *dir, const char *f) {
    int  ret = 0;
    char oldcwd[4096];
 
-   if (! getcwd(oldcwd, sizeof(oldcwd)))
-      return 0;
-
-   if (chdir(dir))
+   if (! getcwd(oldcwd, sizeof(oldcwd)) || chdir(dir))
       return 0;
 
    if (! access(f, F_OK))
@@ -76,9 +72,9 @@ const command_t command_load = {
             "If file is a sole filename it will be\n"
             "searched in the following places:\n"
             " - $PWD\n"
-            " - $XDG\\_CONFIG\\_HOME/.termappwrapper/\n"
-            " - $HOME/.config/termappwrapper/\n"
-            " - $HOME/.termappwrapper/",
+            " - $XDG\\_CONFIG\\_HOME/." CFG_DIR_NAME "\n"
+            " - $HOME/.config/" CFG_DIR_NAME "\n"
+            " - $HOME/." CFG_DIR_NAME,
    .args  = (const char*[]) { "FILE", 0 },
    .opts  = NULL,
    .call  = &call,

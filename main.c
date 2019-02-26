@@ -17,25 +17,26 @@
 #include <sys/wait.h>
 
 #define USAGE \
-"Usage: %s [OPTIONS] PROGRAM [ARGUMENTS...]\n\n"               \
-"OPTIONS\n\n"                                                  \
-" -c FILE\t"                "Read config file (see -h load)\n" \
-" -C STRING\t"              "Read config string\n"             \
-" -m MODE\t"                "Switch/Define mode\n"             \
-" -b KEY CMD\t"             "Alias for 'bind KEY CMD'\n"       \
-" -k IN OUT\t"              "Alias for 'bind IN key OUT'\n"    \
-" -v\t\t"                   "Load vi config\n"                 \
+"Usage: *%s* [_OPTIONS_] PROGRAM [ARGUMENTS...]\n\n"             \
+"OPTIONS\n\n"                                                    \
+" *-c* _FILE_\t"          "Read config file (see -h load)\n"     \
+" *-C* _STRING_\t"        "Read config string\n"                 \
+" *-m* _MODE_\t"          "Switch/Define mode\n"                 \
+" *-b* _KEY_ _CMD_\t"     "Alias for 'bind _KEY_ _CMD_'\n"       \
+" *-k* _IN_ _OUT_\t"      "Alias for 'bind _IN_ key _OUT_'\n"    \
+" *-u* _KEY_\t"           "Alias for 'unbind _KEY_\n"            \
+" *-v*\t\t"               "Load vi config\n"                     \
 "\n" \
-"For more help:\n"                                             \
-" -h commands\n"                                               \
-" -h config\n"                                                 \
-" -h keys\n"                                                   \
-" -h COMMAND\n"
+"For more help:\n"                                               \
+" *-h* _COMMAND_\n"                                              \
+" *-h* commands\n"                                               \
+" *-h* config\n"                                                 \
+" *-h* keys\n"
 #define GETOPT_OPTS "+c:C:m:b:k:hvu:"
 
 /* TODO: repeat-max
  * TODO: instant-leave mode? 
- * TODO: escape-char, system-conf-dir
+ * TODO: escape-char
  * search for configuration files per application basis */
 
 void   cleanup();

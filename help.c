@@ -31,9 +31,13 @@
 #define ATTRS(...) \
    fill_attrs(__VA_ARGS__)
 
-inline __attribute__((always_inline))
-char* firstline(const char *s) {
+static char* firstline(const char *s) {
    return strndup(s, strcspn(s, "\n"));
+}
+
+static void pad_right(int n) {
+   while (n--)
+      P(" ");
 }
 
 static
@@ -44,59 +48,80 @@ const char *attrs[] = {
    ITALIC_END
 };
 
-static void  help_all();
 static void  help_keys();
-static void  help_conf();
-static void  help_command();
-static void  help_commands();
+static void  help_command(command_t *cmd, int full);
+static void  help_commands(int full);
+static void  help_conf_commands(int full);
+static void  help_all(const char *prog, const char *usage);
 
 static char* fill_attrs(const char *);
 static char* indent(const char *, int);
 
 int help(const char *prog, const char *usage, const char *topic) {
-   command_t *cmd;
+   command_t *cmd  = 0;
+   command_t *conf = 0;
 
    if (! topic)
-      P(usage, prog, prog, prog, prog, prog);
-   else if ((cmd = get_command(topic)))
-      help_command(cmd);
-   else if ((cmd = (command_t*) get_conf_command(topic)))
-      help_command(cmd);
+      PA(usage, prog, prog, prog, prog, prog);
    else if (streq(topic, "all"))
-      help_all();
+      help_all(prog, usage);
    else if (streq(topic, "keys"))
       help_keys();
-   else if (strprefix("config", topic))
-      help_conf();
    else if (strprefix("commands", topic))
-      help_commands();
-   else
-      P(usage, prog, prog, prog, prog, prog);
+      help_commands(0);
+   else if (strprefix("config", topic))
+      help_conf_commands(0);
+   else {
+      cmd  = get_command(topic);
+      conf = (command_t*) get_conf_command(topic);
+
+      if (cmd) {
+         if (conf)
+            P("(Command)\n\n");
+         help_command(cmd, 1);
+      }
+      if (conf) {
+         if (cmd)
+            P("(Config)\n\n");
+         help_command(conf, 1);
+      }
+      if (!cmd && !conf)
+         PA(usage, prog, prog, prog, prog, prog);
+   }
 
    return 0;
 }
 
-static void help_all() {
-   help_conf();
+static void help_all(const char *prog, const char *usage) {
+   PA(usage, prog, prog, prog, prog, prog);
    P("\n");
-   help_commands();
+   help_conf_commands(1);
+   P("\n");
+   help_commands(1);
    P("\n");
    help_keys();
 }
 
-static void help_commands() {
+static void help_commands(int full) {
    PA("_Available commands_\n\n");
    for (int i = 0; i < commands_size; ++i)
-      PA("*%-15s* %s\n", commands[i]->name, firstline(commands[i]->desc));
+      help_command(commands[i], full);
 }
 
-static void help_conf() {
+static void help_conf_commands(int full) {
    PA("_Configuration keywords_\n\n");
    for (int i = 0; i < conf_commands_size; ++i)
-      PA("*%-15s* %s\n", conf_commands[i]->name, firstline(conf_commands[i]->desc));
+      help_command((command_t*) conf_commands[i], full);
 }
 
-static void help_command(command_t *cmd) {
+static void help_command(command_t *cmd, int full) {
+   if (! full) {
+      PA("*%-15s* ", cmd->name);
+      PA(firstline(cmd->desc));
+      PA("\n");
+      return;
+   }
+
    PA("*%s*", cmd->name);
 
    if (cmd->opts)
@@ -111,23 +136,32 @@ static void help_command(command_t *cmd) {
    }
 
    P("\n");
-   P(indent(ATTRS(cmd->desc), 3));
+   P(indent(ATTRS(cmd->desc), 1));
    P("\n");
 
    if (cmd->opts) {
+      P("\n");
+
+      int max = 0;
+      for (const command_opt_t *opt = cmd->opts; opt->opt; ++opt)
+         if (opt->meta)
+            max = (strlen(opt->meta) > max ? strlen(opt->meta) : max);
+
       for (const command_opt_t *opt = cmd->opts; opt->opt; ++opt) {
-         PA("     *-%c*", opt->opt);
+         PA(" *-%c*", opt->opt);
 
          if (opt->meta) {
             PA(" _%s_", opt->meta);
-            for (int i = 10 - strlen(opt->meta) - 1; i--; P(" "));
+            pad_right(3 + max - strlen(opt->meta) - 1);
          }
          else
-            P("%-10s", "");
+            pad_right(3 + max);
 
          PA("%s\n", opt->desc);
       }
    }
+
+   P("\n");
 }
 
 static
@@ -145,6 +179,7 @@ char * indent(const char *str, int pad) {
             res[++ind] = ' ';
    } while (*++str);
 
+   res[++ind] = 0;
    return res;
 }
 
@@ -177,14 +212,15 @@ char* fill_attrs(const char *s) {
 
 static void help_keys() {
    PA(
-      "*Symbolic keys*\n"
-      " Up/Down/Left/Right, PageUp/PageDown, Home/End,\n"
-      " Insert/Delete, Space, Enter, Tab, Backspace, F1 .. F12\n"
+      "_Keys_\n\n"
+      " *Symbolic keys*\n"
+      "  Up/Down/Left/Right, PageUp/PageDown, Home/End,\n"
+      "  Insert/Delete, Space, Enter, Tab, Backspace, F1 .. F12\n"
       "\n"
-      "*Modifiers*\n"
-      " *Control*: Control-key, Ctrl-key, C-key, ^key\n"
-      " *Alt*:     Alt-key, A-key, Meta-key, M-key\n"
-      " *Shift*:   Shift-key, S-key\n"
+      " *Modifiers*\n"
+      "  *Control*: Control-key, Ctrl-key, C-key, ^key\n"
+      "  *Alt*:     Alt-key, A-key, Meta-key, M-key\n"
+      "  *Shift*:   Shift-key, S-key\n"
    );
 }
 
